@@ -1,0 +1,12 @@
+.platform-wallet.local.json
+.env
+.env.local
+.git
+.pytest_cache
+artifacts
+node_modules
+apps/web/node_modules
+apps/web/.next
+contracts/base/cache
+contracts/base/lib
+contracts/base/out

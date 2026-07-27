@@ -1,0 +1,173 @@
+export const escrowAbi = [
+  {
+    type: "event",
+    name: "EventCreated",
+    inputs: [
+      { name: "eventId", type: "uint256", indexed: true },
+      { name: "creator", type: "address", indexed: true },
+      { name: "assignee", type: "address", indexed: true },
+      { name: "deadline", type: "uint64", indexed: false },
+      { name: "title", type: "string", indexed: false },
+      { name: "termsCid", type: "string", indexed: false },
+    ],
+  },
+  {
+    type: "function",
+    name: "createEvent",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "assignee", type: "address" },
+      { name: "title", type: "string" },
+      { name: "termsCid", type: "string" },
+      { name: "deadline", type: "uint64" },
+    ],
+    outputs: [{ name: "eventId", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "addMilestones",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "criteria", type: "string[]" },
+      { name: "amounts", type: "uint256[]" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "fundAndActivate",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "eventId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "appealBond",
+    stateMutability: "view",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "openAppeal",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+      { name: "reasonHash", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "refundEvent",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "eventId", type: "uint256" }],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "resolveAppeal",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+      { name: "approvalUpheld", type: "bool" },
+      { name: "finalReviewId", type: "bytes32" },
+      { name: "finalResultHash", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "proposeMilestoneApproval",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+      { name: "reviewId", type: "bytes32" },
+      { name: "resultHash", type: "bytes32" },
+      { name: "challengeDeadline", type: "uint64" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "releaseMilestone",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+      { name: "reviewId", type: "bytes32" },
+      { name: "resultHash", type: "bytes32" },
+    ],
+    outputs: [],
+  },
+  {
+    type: "function",
+    name: "getEvent",
+    stateMutability: "view",
+    inputs: [{ name: "eventId", type: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "creator", type: "address" },
+          { name: "assignee", type: "address" },
+          { name: "deadline", type: "uint64" },
+          { name: "status", type: "uint8" },
+          { name: "milestoneCount", type: "uint32" },
+          { name: "paidCount", type: "uint32" },
+          { name: "totalAmount", type: "uint256" },
+          { name: "paidAmount", type: "uint256" },
+          { name: "title", type: "string" },
+          { name: "termsCid", type: "string" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "getMilestone",
+    stateMutability: "view",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        components: [
+          { name: "amount", type: "uint256" },
+          { name: "criteriaHash", type: "bytes32" },
+          { name: "reviewId", type: "bytes32" },
+          { name: "resultHash", type: "bytes32" },
+          { name: "challengeDeadline", type: "uint64" },
+          { name: "approvalProposed", type: "bool" },
+          { name: "appealOpen", type: "bool" },
+          { name: "paid", type: "bool" },
+          { name: "criteria", type: "string" },
+        ],
+      },
+    ],
+  },
+] as const;
+
+export const erc20Abi = [
+  {
+    type: "function",
+    name: "approve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "spender", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;

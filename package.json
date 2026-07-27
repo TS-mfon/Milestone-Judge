@@ -1,0 +1,34 @@
+{
+  "name": "milestone-verifier",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "dependencies": {
+    "next": "16.2.12",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "scripts": {
+    "dev": "npm --workspace apps/web run dev",
+    "build": "npm --workspace apps/web run build",
+    "lint": "npm --workspace apps/web run lint",
+    "typecheck": "npm --workspace apps/web run typecheck",
+    "test": "npm --workspace apps/web run test",
+    "contracts:build": "forge build --root contracts/base",
+    "contracts:test": "forge test --root contracts/base -vvv",
+    "contracts:lint": "uvx --from genvm-linter genvm-lint check contracts/genlayer/milestone_verifier.py",
+    "test:genlayer": "uvx --from genlayer-test pytest -q contracts/genlayer/tests/direct",
+    "smoke:live": "node scripts/live-smoke.mjs",
+    "wallet:generate": "node scripts/generate-platform-wallet.mjs",
+    "check": "npm run lint && npm run typecheck && npm run test && npm run contracts:build"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "sharp": "0.35.3"
+  }
+}
