@@ -51,8 +51,8 @@ export default function NewEventPage() {
     if (!address) return setError("Connect the creator wallet before funding an event.");
     if (!isAddress(assignee)) return setError("Enter a valid assigned wallet address.");
     const deadlineSeconds = Math.floor(new Date(deadline).getTime() / 1000);
-    if (!deadlineSeconds || deadlineSeconds <= unixSeconds() + 86_400) {
-      return setError("The deadline must leave at least 24 hours for review and challenge.");
+    if (!deadlineSeconds || deadlineSeconds <= unixSeconds() + 600) {
+      return setError("The deadline must leave at least 10 minutes for review and settlement.");
     }
     if (milestones.some((item) =>
       item.criteria.trim().length < 10 ||

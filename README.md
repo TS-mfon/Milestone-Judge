@@ -47,8 +47,10 @@ in [`docs/deployment.md`](docs/deployment.md).
 - Returns a decision, score, detailed review, strengths, improvements,
   suggestions, citations, and evidence gaps.
 - Uses hosted 1Shot to relay exact executor calls on Base Sepolia.
-- Provides a 24-hour creator challenge window before payout.
-- Supports bonded creator appeals and GenLayer appeal review.
+- Automatically starts Base settlement when an approved score meets the funded
+  minimum.
+- Automatically releases the exact milestone amount after the escrow's short
+  required settlement interval.
 - Releases each milestone once and only to the original assignee.
 - Refunds only the unpaid event balance after the event deadline.
 - Uses no application database, queue, cron job, or webhook persistence.
@@ -152,15 +154,14 @@ does not remove event, review, or escrow state.
 5. The API verifies the signature and funded milestone state.
 6. The GenLayer-only platform signer calls GenLayer `request_review`.
 7. GenLayer validators produce and compare independent verdicts.
-8. If the decision is approved and the score meets the threshold, a user
-   triggers an approval proposal through hosted 1Shot.
-9. The creator has 24 hours to open a bonded appeal.
-10. After an unchallenged or upheld approval, a user triggers payout.
-11. Hosted 1Shot calls `releaseMilestone`.
-12. The escrow transfers the exact funded amount to the assignee.
+8. If the decision is approved and the score meets the threshold, the Vercel
+   coordinator automatically asks hosted 1Shot to record the approval.
+9. After the immutable escrow's short required timestamp interval, the same
+   server request automatically asks 1Shot to call `releaseMilestone`.
+10. The escrow transfers the exact funded amount to the assignee.
 
 Rejected, inconclusive, or below-threshold results do not create a payout
-proposal. The assignee may submit materially improved evidence before expiry.
+transaction. The assignee may submit materially improved evidence before expiry.
 
 ## Evidence Authorization And Wallet Networks
 
@@ -260,6 +261,7 @@ The separate Base settlement executor needs Base Sepolia USDC for relay fees.
 | `/app` | Connected-wallet overview |
 | `/events/assigned` | Events assigned to the connected wallet |
 | `/events/created` | Events created by the connected wallet |
+| `/history` | Completed milestones and Base payout transaction hashes |
 | `/events/new` | Create milestones and lock USDC |
 | `/events/[id]` | Event and milestone state |
 | `/events/[id]/milestones/[milestoneId]/submit` | Evidence authorization |
@@ -275,7 +277,6 @@ contracts/genlayer/           Intelligent contract and direct tests
 docs/                         Architecture, deployment, and operations
 scripts/generate-platform-wallet.mjs
 scripts/live-smoke.mjs
-plan.md                       Product and implementation plan
 ```
 
 ## Prerequisites
@@ -402,10 +403,12 @@ Base Sepolia.
 A review may already be pending. Open the current review from the submission
 page and wait for GenLayer finalization.
 
-### Review finalized but no approval action is available
+### Review finalized but payout is still processing
 
-Check the decision and score. The result must be approved and meet the
-milestone's on-chain minimum score.
+The result must be approved and meet the milestone's on-chain minimum score.
+Keep the verdict page open while hosted 1Shot confirms the approval and release
+transactions. The completed payment and Base transaction hash then appear under
+`/history`.
 
 ### Hosted settlement fails
 

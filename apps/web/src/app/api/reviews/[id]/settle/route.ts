@@ -3,10 +3,10 @@ import { z } from "zod";
 import { settleReview } from "@/lib/settlement";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 const schema = z.object({
-  action: z.enum(["proposal", "payout", "appeal-resolution"]),
+  action: z.enum(["automatic-payout", "proposal", "payout", "appeal-resolution"]),
   eventId: z.number().int().positive(),
   milestoneId: z.number().int().nonnegative(),
 });

@@ -13,6 +13,8 @@ broadcast/
 !.env.example
 .platform-wallet.local.json
 .platform-*.local.json
+pk.md
+plan.md
 contracts/base/lib/
 contracts/base/out/
 contracts/base/cache/

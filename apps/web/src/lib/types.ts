@@ -38,6 +38,7 @@ export interface Milestone {
   appealOpen?: boolean;
   payoutReady?: boolean;
   paidAt?: string;
+  paymentTransactionHash?: `0x${string}`;
 }
 
 export interface MilestoneEvent {

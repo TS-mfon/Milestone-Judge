@@ -112,7 +112,29 @@ curl -sS https://YOUR_DOMAIN/api/health
 curl -sS https://YOUR_DOMAIN/api/events
 ```
 
-## 6. Separated-signer production smoke
+## 6. Automatic 10 USDC production payout
+
+The Work Proof milestone for assigned wallet
+`0x5905c9Dea6Ae52AA0947D8F7F218263889eDfC4` was automatically settled on
+July 28, 2026:
+
+- Base event and milestone: `2`, `0`
+- GenLayer review:
+  `review_0060f4447db06ddb0f328df78f2c139337a423f02566ca5186466ba7cde4f2eb`
+- Decision and score: `approved`, `95`
+- Funded minimum score: `80`
+- Hosted 1Shot payout task:
+  `0x8bc7fd3ac61563777920933c4f7718e83b42ba50ea479894dbfb2fa741ce9092`
+- Confirmed Base payment transaction:
+  `0xac2677505810f749ef6e2a68841b21dbf8530a6aa478032f8ffcc0e2e54d6f55`
+- Amount transferred: `10 USDC`
+- Paid at: `July 28, 2026 at 10:39:56 UTC`
+
+The receipt contains both the USDC transfer to the funded assignee and the
+escrow's `MilestoneReleased` event. Event `2` is now completed, and the payment
+appears in the connected wallet's History tab.
+
+## 7. Separated-signer production smoke
 
 The fully separated production path was exercised on July 28, 2026 with Base
 event `3`, milestone `0`, a 0.1 USDC escrow, and an on-chain minimum score of
@@ -145,7 +167,7 @@ submitted the review using only the GenLayer signer
 proposal using the separate executor. A repeated initial review returned HTTP
 `409` because the milestone was already in its challenge window.
 
-## 7. Scored deployment live smoke
+## 8. Scored deployment live smoke
 
 The scored production path was exercised on July 28, 2026 with Base event `1`,
 milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
@@ -170,7 +192,7 @@ milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
 The milestone remains locked during its challenge window. Once that exact
 deadline passes, the payout action can release the 1 USDC milestone once.
 
-## 8. Previous deployment smoke record
+## 9. Previous deployment smoke record
 
 The previous contract version was exercised with Base event `1`, milestone `0`.
 Those identifiers remain historical and are not part of the scored deployment:

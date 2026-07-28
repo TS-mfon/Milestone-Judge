@@ -3,6 +3,7 @@ import {
   formatUnits,
   http,
   parseAbiItem,
+  type Hex,
 } from "viem";
 import { isContractConfigured, publicConfig } from "./config";
 import { escrowAbi } from "./contracts";
@@ -11,6 +12,9 @@ import type { EventStatus, MilestoneEvent, ReviewStatus } from "./types";
 
 const createdEvent = parseAbiItem(
   "event EventCreated(uint256 indexed eventId, address indexed creator, address indexed assignee, uint64 deadline, string title, string termsCid)",
+);
+const milestoneReleased = parseAbiItem(
+  "event MilestoneReleased(uint256 indexed eventId, uint256 indexed milestoneId, bytes32 indexed reviewId, bytes32 resultHash, address assignee, uint256 amount)",
 );
 
 const eventStatuses: EventStatus[] = ["draft", "draft", "active", "completed", "refunded"];
@@ -27,7 +31,8 @@ export async function readMilestoneEvents(options?: {
   });
   const fromBlock = BigInt(process.env.BASE_INDEX_START_BLOCK || 0);
   const logs = [];
-  let toBlock = await client.getBlockNumber();
+  const latestBlock = await client.getBlockNumber();
+  let toBlock = latestBlock;
   while (toBlock >= fromBlock && logs.length < 100) {
     const chunkFrom = toBlock - fromBlock > 1_999n ? toBlock - 1_999n : fromBlock;
     const chunk = await client.getLogs({
@@ -40,6 +45,41 @@ export async function readMilestoneEvents(options?: {
     if (chunkFrom === fromBlock) break;
     toBlock = chunkFrom - 1n;
   }
+
+  const releaseLogs: Array<{
+    args: { eventId?: bigint; milestoneId?: bigint };
+    blockNumber: bigint | null;
+    transactionHash: Hex | null;
+  }> = [];
+  let releaseToBlock = latestBlock;
+  while (releaseToBlock >= fromBlock && releaseLogs.length < 500) {
+    const chunkFrom =
+      releaseToBlock - fromBlock > 1_999n ? releaseToBlock - 1_999n : fromBlock;
+    const chunk = await client.getLogs({
+      address: publicConfig.escrowAddress,
+      event: milestoneReleased,
+      fromBlock: chunkFrom,
+      toBlock: releaseToBlock,
+    });
+    releaseLogs.push(...[...chunk].reverse());
+    if (chunkFrom === fromBlock) break;
+    releaseToBlock = chunkFrom - 1n;
+  }
+  const releaseByMilestone = new Map(
+    releaseLogs
+      .filter(
+        (log) =>
+          log.args.eventId !== undefined && log.args.milestoneId !== undefined,
+      )
+      .map((log) => [
+        `${log.args.eventId}:${log.args.milestoneId}`,
+        {
+          blockNumber: log.blockNumber,
+          transactionHash: log.transactionHash || undefined,
+        },
+      ]),
+  );
+  const blockTimestamps = new Map<bigint, string>();
 
   const output: MilestoneEvent[] = [];
   const now = Math.floor(Date.now() / 1000);
@@ -60,6 +100,18 @@ export async function readMilestoneEvents(options?: {
         functionName: "getMilestone",
         args: [eventId, BigInt(milestoneId)],
       });
+      const release = releaseByMilestone.get(`${eventId}:${milestoneId}`);
+      let paidAt: string | undefined;
+      if (release?.blockNumber !== null && release?.blockNumber !== undefined) {
+        paidAt = blockTimestamps.get(release.blockNumber);
+        if (!paidAt) {
+          const releaseBlock = await client.getBlock({
+            blockNumber: release.blockNumber,
+          });
+          paidAt = new Date(Number(releaseBlock.timestamp) * 1000).toISOString();
+          blockTimestamps.set(release.blockNumber, paidAt);
+        }
+      }
       const latestReview = await readLatestReview(eventId, milestoneId).catch(() => undefined);
       let reviewStatus: ReviewStatus = "not_submitted";
       if (milestone.paid) reviewStatus = "paid";
@@ -103,6 +155,8 @@ export async function readMilestoneEvents(options?: {
           milestone.approvalProposed &&
           !milestone.appealOpen &&
           now >= Number(milestone.challengeDeadline),
+        paidAt,
+        paymentTransactionHash: release?.transactionHash,
       });
     }
     const block = log.blockNumber

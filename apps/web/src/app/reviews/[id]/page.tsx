@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   CheckCircle2,
+  CircleDollarSign,
   CircleDashed,
   ExternalLink,
   Lightbulb,
@@ -13,7 +14,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { apiError } from "@/lib/errors";
 import { clearPendingReview } from "@/lib/pending-review";
 import type { StoredReview } from "@/lib/types";
 
@@ -30,6 +32,8 @@ function ReviewContent() {
   const transactionHash = search.get("transactionHash") || "";
   const [data, setData] = useState<ReviewResponse>({ status: "pending" });
   const [error, setError] = useState("");
+  const [settlement, setSettlement] = useState("");
+  const settlementStarted = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -60,6 +64,40 @@ function ReviewContent() {
       window.clearInterval(timer);
     };
   }, [refresh, data.review]);
+
+  useEffect(() => {
+    const review = data.review;
+    if (
+      !review ||
+      review.review_kind !== "initial" ||
+      review.result.decision !== "approved" ||
+      settlementStarted.current
+    ) {
+      return;
+    }
+    settlementStarted.current = true;
+    setSettlement("Releasing verified payout through hosted 1Shot");
+    void fetch(`/api/reviews/${encodeURIComponent(review.review_id)}/settle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "automatic-payout",
+        eventId: Number(review.event_id),
+        milestoneId: Number(review.milestone_id),
+      }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(await apiError(response, "Automatic payout failed."));
+        }
+        setSettlement("Payout confirmed on Base Sepolia");
+      })
+      .catch((caught) => {
+        setSettlement("");
+        setError(caught instanceof Error ? caught.message : "Automatic payout failed.");
+        settlementStarted.current = false;
+      });
+  }, [data.review]);
 
   if (!data.review) {
     return (
@@ -92,6 +130,21 @@ function ReviewContent() {
         <span className={result.measurement_valid ? "pass" : "fail"}>{result.measurement_valid ? <CheckCircle2 /> : <AlertTriangle />}Measurement valid</span>
         <span className={!result.material_exception ? "pass" : "fail"}>{!result.material_exception ? <CheckCircle2 /> : <AlertTriangle />}No material exception</span>
       </section>
+      {result.decision === "approved" && (
+        <section className="automatic-payout-status">
+          {settlement === "Payout confirmed on Base Sepolia" ? (
+            <CheckCircle2 size={19} />
+          ) : (
+            <LoaderCircle className="spin" size={19} />
+          )}
+          <div>
+            <strong>{settlement || "Preparing automatic payout"}</strong>
+            <p>Passing reviews are settled automatically when the score meets the funded minimum.</p>
+          </div>
+          <CircleDollarSign size={22} />
+        </section>
+      )}
+      {error && <div className="form-error">{error}</div>}
       <section className="verdict-grid">
         <article className="verdict-review"><div className="panel-title"><SearchCheck />Evidence review</div><p>{result.review}</p></article>
         <VerdictList icon={<TrendingUp />} title="Strengths" items={result.strengths} />

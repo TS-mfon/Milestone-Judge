@@ -3,8 +3,8 @@
 ## Settlement boundary
 
 Base Sepolia is authoritative for USDC. `MilestoneEscrow` stores event terms,
-locks the aggregate milestone amount, enforces the challenge deadline, prevents
-duplicate releases, and returns only unpaid funds after expiry.
+locks the aggregate milestone amount, enforces its two-step settlement state,
+prevents duplicate releases, and returns only unpaid funds after expiry.
 
 GenLayer is authoritative for subjective evidence judgments. The intelligent
 contract accepts requests only from the GenLayer platform signer, uses prompt-comparative
@@ -28,14 +28,14 @@ GenLayer StudioNet on every request.
 4. The client polls the GenLayer transaction and stored review.
 5. Rejected or inconclusive results remain on-chain and may be resubmitted with
    a new attempt.
-6. For an approved review whose score meets the funded threshold, a user
-   explicitly triggers the approval proposal.
+6. For an approved review whose score meets the funded threshold, the verdict
+   page automatically starts settlement.
 7. Hosted 1Shot relays `proposeMilestoneApproval` with an exact-call delegation.
-8. The creator may open an on-chain appeal during the 24-hour window.
-9. A creator-triggered appeal review is finalized on GenLayer and explicitly
-   relayed to `resolveAppeal`.
-10. After the challenge window, a user explicitly triggers
-    `releaseMilestone`; 1Shot status is queried directly by task ID.
+8. The coordinator waits for confirmation and the escrow's short required
+   timestamp interval.
+9. Hosted 1Shot automatically relays `releaseMilestone`.
+10. The UI indexes `MilestoneReleased` logs for payment time and transaction
+    history.
 
 ## Trust and recovery
 

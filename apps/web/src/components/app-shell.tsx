@@ -5,6 +5,7 @@ import {
   FilePlus2,
   Files,
   Gauge,
+  History,
   Menu,
   Network,
   ShieldCheck,
@@ -21,6 +22,7 @@ const nav = [
   { href: "/app", label: "Overview", icon: Gauge },
   { href: "/events/assigned", label: "Assigned to me", icon: BriefcaseBusiness },
   { href: "/events/created", label: "Created by me", icon: Files },
+  { href: "/history", label: "History", icon: History },
   { href: "/events/new", label: "Create event", icon: FilePlus2 },
 ];
 

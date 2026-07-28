@@ -49,8 +49,8 @@ export async function validateOnchainReview(request: ReviewRequest) {
   }
   if (
     request.kind === "initial" &&
-    event.deadline <= BigInt(Math.floor(Date.now() / 1000) + 24 * 60 * 60)
+    event.deadline <= BigInt(Math.floor(Date.now() / 1000) + 10 * 60)
   ) {
-    throw new Error("Not enough time remains for the challenge window");
+    throw new Error("Not enough time remains to verify and settle this milestone");
   }
 }

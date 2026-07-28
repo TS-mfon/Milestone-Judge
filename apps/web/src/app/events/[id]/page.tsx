@@ -4,7 +4,6 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarClock,
-  CheckCircle2,
   CircleDollarSign,
   ExternalLink,
   LoaderCircle,
@@ -48,7 +47,10 @@ export default function EventDetailPage() {
   const [error, setError] = useState("");
   const event = events.find((item) => item.id === eventId);
 
-  async function settle(milestone: Milestone, kind: "proposal" | "payout" | "appeal-resolution") {
+  async function settle(
+    milestone: Milestone,
+    kind: "automatic-payout" | "proposal" | "payout" | "appeal-resolution",
+  ) {
     if (!milestone.reviewId) return setError("The finalized GenLayer review is not available.");
     setAction(`${milestone.id}:${kind}`);
     setError("");
@@ -138,10 +140,7 @@ export default function EventDetailPage() {
                   <Link className="primary-button" href={`/events/${event.id}/milestones/${milestone.id}/submit`}><Sparkles size={16} />Submit evidence</Link>
                 )}
                 {milestone.reviewStatus === "finalized" && qualifies && !milestone.appealOpen && (
-                  <button className="primary-button" disabled={busy} onClick={() => void settle(milestone, "proposal")}>{busy ? <LoaderCircle className="spin" size={16} /> : <CheckCircle2 size={16} />}Open challenge window</button>
-                )}
-                {creator && milestone.reviewStatus === "challenge_window" && !milestone.payoutReady && (
-                  <Link className="danger-button" href={`/events/${event.id}/milestones/${milestone.id}/appeal`}><ShieldAlert size={16} />Open appeal</Link>
+                  <button className="primary-button" disabled={busy} onClick={() => void settle(milestone, "automatic-payout")}>{busy ? <LoaderCircle className="spin" size={16} /> : <CircleDollarSign size={16} />}Release verified payout</button>
                 )}
                 {milestone.reviewStatus === "challenge_window" && milestone.payoutReady && (
                   <button className="primary-button" disabled={busy} onClick={() => void settle(milestone, "payout")}><CircleDollarSign size={16} />Release payout</button>
