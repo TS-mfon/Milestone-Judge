@@ -16,13 +16,21 @@ export interface Milestone {
   id: number;
   criteria: string;
   amountUsdc: number;
+  minimumScore: number;
+  approvedScore?: number;
   reviewStatus: ReviewStatus;
   decision?: ReviewDecision;
   evidenceStatement?: string;
   evidenceLinks?: string[];
   reviewId?: string;
+  score?: number;
+  review?: string;
   explanation?: string;
+  strengths?: string[];
+  improvements?: string[];
+  suggestions?: string[];
   citations?: string[];
+  evidenceGaps?: string[];
   challengeDeadline?: string;
   resultHash?: `0x${string}`;
   genlayerTxHash?: `0x${string}`;
@@ -78,10 +86,15 @@ export interface StoredReview {
   appeal_context: string;
   result: {
     decision: ReviewDecision;
+    score: number;
     criterion_met: boolean;
     measurement_valid: boolean;
     material_exception: boolean;
+    review: string;
     explanation: string;
+    strengths: string[];
+    improvements: string[];
+    suggestions: string[];
     citations: string[];
     evidence_gaps: string[];
   };

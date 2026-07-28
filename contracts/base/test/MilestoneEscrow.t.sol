@@ -56,7 +56,10 @@ contract MilestoneEscrowTest is Test {
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 100e6;
         amounts[1] = 250e6;
-        escrow.addMilestones(eventId, criteria, amounts);
+        uint8[] memory minimumScores = new uint8[](2);
+        minimumScores[0] = 80;
+        minimumScores[1] = 90;
+        escrow.addMilestones(eventId, criteria, amounts, minimumScores);
         usdc.approve(address(escrow), 350e6);
         escrow.fundAndActivate(eventId);
         vm.stopPrank();
@@ -70,6 +73,7 @@ contract MilestoneEscrowTest is Test {
             0,
             keccak256("review-1"),
             keccak256("approved"),
+            80,
             uint64(block.timestamp + 1 days)
         );
         vm.warp(block.timestamp + 1 days);
@@ -88,7 +92,7 @@ contract MilestoneEscrowTest is Test {
         bytes32 resultHash = keccak256("approved");
         vm.startPrank(executor);
         escrow.proposeMilestoneApproval(
-            eventId, 0, reviewId, resultHash, uint64(block.timestamp + 1 days)
+            eventId, 0, reviewId, resultHash, 94, uint64(block.timestamp + 1 days)
         );
         vm.stopPrank();
         vm.warp(block.timestamp + 1 days);
@@ -107,6 +111,7 @@ contract MilestoneEscrowTest is Test {
             0,
             keccak256("review-1"),
             keccak256("approved"),
+            86,
             uint64(block.timestamp + 1 days)
         );
         vm.warp(block.timestamp + 1 days);
@@ -135,6 +140,7 @@ contract MilestoneEscrowTest is Test {
             0,
             keccak256("review-1"),
             keccak256("approved"),
+            82,
             uint64(block.timestamp + 1 days)
         );
 
@@ -145,9 +151,62 @@ contract MilestoneEscrowTest is Test {
 
         vm.prank(executor);
         escrow.resolveAppeal(
-            eventId, 0, false, keccak256("appeal-review"), keccak256("rejected")
+            eventId, 0, false, 42, keccak256("appeal-review"), keccak256("rejected")
         );
         assertEq(usdc.balanceOf(creator), 650e6);
         assertFalse(escrow.getMilestone(eventId, 0).approvalProposed);
+    }
+
+    function testRejectsScoreBelowCreatorThreshold() public {
+        uint256 eventId = createAndFund();
+        vm.prank(executor);
+        vm.expectRevert(MilestoneEscrow.ScoreBelowMinimum.selector);
+        escrow.proposeMilestoneApproval(
+            eventId,
+            0,
+            keccak256("review-low"),
+            keccak256("approved"),
+            79,
+            uint64(block.timestamp + 1 days)
+        );
+    }
+
+    function testStoresExactThresholdScore() public {
+        uint256 eventId = createAndFund();
+        vm.prank(executor);
+        escrow.proposeMilestoneApproval(
+            eventId,
+            0,
+            keccak256("review-exact"),
+            keccak256("approved"),
+            80,
+            uint64(block.timestamp + 1 days)
+        );
+        MilestoneEscrow.Milestone memory milestone = escrow.getMilestone(eventId, 0);
+        assertEq(milestone.minimumScore, 80);
+        assertEq(milestone.approvedScore, 80);
+    }
+
+    function testAppealCannotUpholdScoreBelowThreshold() public {
+        uint256 eventId = createAndFund();
+        vm.prank(executor);
+        escrow.proposeMilestoneApproval(
+            eventId,
+            0,
+            keccak256("review-1"),
+            keccak256("approved"),
+            90,
+            uint64(block.timestamp + 1 days)
+        );
+        vm.startPrank(creator);
+        usdc.approve(address(escrow), 1e6);
+        escrow.openAppeal(eventId, 0, keccak256("appeal"));
+        vm.stopPrank();
+
+        vm.prank(executor);
+        vm.expectRevert(MilestoneEscrow.ScoreBelowMinimum.selector);
+        escrow.resolveAppeal(
+            eventId, 0, true, 79, keccak256("appeal-review"), keccak256("approved")
+        );
     }
 }

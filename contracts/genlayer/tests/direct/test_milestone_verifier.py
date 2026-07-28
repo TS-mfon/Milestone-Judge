@@ -4,10 +4,15 @@ import json
 APPROVED = json.dumps(
     {
         "decision": "approved",
+        "score": 92,
         "criterion_met": True,
         "measurement_valid": True,
         "material_exception": False,
+        "review": "The submitted release is publicly accessible and the repository history confirms the required launch work.",
         "explanation": "The public release and repository evidence show the launch criterion was completed.",
+        "strengths": ["Public production release", "Traceable repository history"],
+        "improvements": ["Add an independent uptime monitor"],
+        "suggestions": ["Publish a post-launch reliability report"],
         "citations": ["https://example.com/release"],
         "evidence_gaps": [],
     }
@@ -38,6 +43,8 @@ def test_platform_can_store_approved_review(direct_vm, direct_deploy, direct_ali
 
     stored = json.loads(contract.get_review("review-1"))
     assert stored["result"]["decision"] == "approved"
+    assert stored["result"]["score"] == 92
+    assert stored["result"]["suggestions"] == ["Publish a post-launch reliability report"]
     assert stored["evidence_links"] == ["https://example.com/release"]
     assert (
         contract.get_latest_review_id("84532", "0xEscrow", "1", "0")

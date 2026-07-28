@@ -32,9 +32,12 @@ are then paid through a 1Shot-relayed call to the Base escrow contract.
    expiry; the deterministic review ID prevents duplicate storage.
 5. The platform wallet submits the review directly to GenLayer and the
    intelligent contract indexes the latest review for the Base milestone.
-6. Validators independently return `approved`, `rejected`, or `inconclusive`.
+6. Validators use GenLayer comparative consensus to return a decision, 0-100
+   score, detailed review, strengths, improvements, suggestions, citations, and
+   evidence gaps.
 7. Rejected and inconclusive milestones may be resubmitted before the deadline.
-8. Approved results are committed to Base with a 24-hour challenge deadline.
+8. Approved results are committed to Base only when the score meets the
+   creator-defined milestone threshold, with a 24-hour challenge deadline.
 9. Creator may open an appeal by bonding 1% of the milestone, bounded from 1 to
    100 USDC.
 10. GenLayer performs the appeal review and 1Shot relays the bond resolution.
@@ -47,6 +50,7 @@ are then paid through a 1Shot-relayed call to the Base escrow contract.
 - Milestones cannot change after funding.
 - A milestone cannot be paid twice.
 - Payout review IDs and result hashes must match the proposed approval.
+- The escrow rejects approval and appeal scores below the funded threshold.
 - Open appeals block payouts.
 - Invalid, malformed, inaccessible, or disputed evidence cannot approve payment.
 - Finalized GenLayer status is not treated as success unless execution succeeded.
@@ -66,9 +70,9 @@ are then paid through a 1Shot-relayed call to the Base escrow contract.
 ## Live Deployment
 
 - Base Sepolia escrow:
-  `0xc437583f16E613b524F6607d81B628c5e5274f39`
+  `0x47F846c659B4DF565d2e8b1cd32F610E68d11B9A`
 - GenLayer StudioNet verifier:
-  `0x90A4396b5b9524501181f4ce8d1fBf42C2836d87`
+  `0x4006FA705a70BF9137e7B5d07555b6E547Cae5c5`
 - Hosted 1Shot:
   `https://relayer.1shotapi.dev/relayers`
 - Live approved review and Base proposal are recorded in
@@ -78,7 +82,7 @@ are then paid through a 1Shot-relayed call to the Base escrow contract.
 
 - Create, fund, and render a multi-milestone event.
 - Submit signed evidence from only the assigned wallet.
-- Store a normalized GenLayer result with independent validator comparison.
+- Store a normalized scored GenLayer result with prompt-comparative consensus.
 - Resubmit rejected or inconclusive evidence.
 - Open and resolve a bonded creator appeal.
 - Prevent payout before the challenge deadline or while an appeal is open.

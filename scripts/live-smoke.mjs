@@ -51,6 +51,8 @@ const escrowAbi = [
           { name: "reviewId", type: "bytes32" },
           { name: "resultHash", type: "bytes32" },
           { name: "challengeDeadline", type: "uint64" },
+          { name: "minimumScore", type: "uint8" },
+          { name: "approvedScore", type: "uint8" },
           { name: "approvalProposed", type: "bool" },
           { name: "appealOpen", type: "bool" },
           { name: "paid", type: "bool" },
@@ -186,12 +188,18 @@ async function main() {
         stage: "review",
         status: status.status,
         decision: status.review?.result?.decision,
+        score: status.review?.result?.score,
       }),
     );
     if (status.status !== "finalized") continue;
     if (!settle) return;
     if (status.review.result.decision !== "approved") {
       throw new Error(`Review finalized as ${status.review.result.decision}`);
+    }
+    if (status.review.result.score < Number(milestone.minimumScore)) {
+      throw new Error(
+        `Review score ${status.review.result.score} is below ${milestone.minimumScore}`,
+      );
     }
     const settlement = await jsonRequest(`${apiUrl}/api/reviews/${submitted.id}/settle`, {
       method: "POST",

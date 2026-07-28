@@ -34,6 +34,8 @@ contract MilestoneEscrow {
         bytes32 reviewId;
         bytes32 resultHash;
         uint64 challengeDeadline;
+        uint8 minimumScore;
+        uint8 approvedScore;
         bool approvalProposed;
         bool appealOpen;
         bool paid;
@@ -54,6 +56,7 @@ contract MilestoneEscrow {
     error DeadlinePassed();
     error DeadlineNotReached();
     error AlreadyPaid();
+    error ScoreBelowMinimum();
     error TransferFailed();
     error Paused();
     error ReentrantCall();
@@ -87,6 +90,7 @@ contract MilestoneEscrow {
         uint256 indexed eventId,
         uint256 indexed milestoneId,
         uint256 amount,
+        uint8 minimumScore,
         bytes32 criteriaHash,
         string criteria
     );
@@ -96,6 +100,7 @@ contract MilestoneEscrow {
         uint256 indexed milestoneId,
         bytes32 indexed reviewId,
         bytes32 resultHash,
+        uint8 score,
         uint64 challengeDeadline
     );
     event AppealOpened(
@@ -109,6 +114,7 @@ contract MilestoneEscrow {
         uint256 indexed eventId,
         uint256 indexed milestoneId,
         bool approvalUpheld,
+        uint8 finalScore,
         bytes32 finalReviewId,
         bytes32 finalResultHash
     );
@@ -187,17 +193,24 @@ contract MilestoneEscrow {
     function addMilestones(
         uint256 eventId,
         string[] calldata criteria,
-        uint256[] calldata amounts
+        uint256[] calldata amounts,
+        uint8[] calldata minimumScores
     ) external whenNotPaused {
         EventRecord storage record = events[eventId];
         if (record.creator != msg.sender) revert Unauthorized();
         if (record.status != EventStatus.Draft) revert InvalidState();
-        if (criteria.length == 0 || criteria.length != amounts.length || criteria.length > 50) {
+        if (
+            criteria.length == 0 || criteria.length != amounts.length
+                || criteria.length != minimumScores.length || criteria.length > 50
+        ) {
             revert InvalidInput();
         }
 
         for (uint256 i; i < criteria.length; ++i) {
-            if (bytes(criteria[i]).length == 0 || bytes(criteria[i]).length > 2_000 || amounts[i] == 0) {
+            if (
+                bytes(criteria[i]).length == 0 || bytes(criteria[i]).length > 2_000
+                    || amounts[i] == 0 || minimumScores[i] == 0 || minimumScores[i] > 100
+            ) {
                 revert InvalidInput();
             }
             uint256 milestoneId = record.milestoneCount++;
@@ -208,13 +221,22 @@ contract MilestoneEscrow {
                 reviewId: bytes32(0),
                 resultHash: bytes32(0),
                 challengeDeadline: 0,
+                minimumScore: minimumScores[i],
+                approvedScore: 0,
                 approvalProposed: false,
                 appealOpen: false,
                 paid: false,
                 criteria: criteria[i]
             });
             record.totalAmount += amounts[i];
-            emit MilestoneAdded(eventId, milestoneId, amounts[i], criteriaHash, criteria[i]);
+            emit MilestoneAdded(
+                eventId,
+                milestoneId,
+                amounts[i],
+                minimumScores[i],
+                criteriaHash,
+                criteria[i]
+            );
         }
     }
 
@@ -234,6 +256,7 @@ contract MilestoneEscrow {
         uint256 milestoneId,
         bytes32 reviewId,
         bytes32 resultHash,
+        uint8 score,
         uint64 challengeDeadline
     ) external onlyExecutor whenNotPaused {
         EventRecord storage record = events[eventId];
@@ -244,15 +267,18 @@ contract MilestoneEscrow {
         }
         if (
             reviewId == bytes32(0) || resultHash == bytes32(0)
-                || challengeDeadline <= block.timestamp || challengeDeadline > record.deadline
+                || score > 100 || challengeDeadline <= block.timestamp
+                || challengeDeadline > record.deadline
         ) revert InvalidInput();
+        if (score < milestone.minimumScore) revert ScoreBelowMinimum();
 
         milestone.reviewId = reviewId;
         milestone.resultHash = resultHash;
+        milestone.approvedScore = score;
         milestone.challengeDeadline = challengeDeadline;
         milestone.approvalProposed = true;
         emit MilestoneApprovalProposed(
-            eventId, milestoneId, reviewId, resultHash, challengeDeadline
+            eventId, milestoneId, reviewId, resultHash, score, challengeDeadline
         );
     }
 
@@ -289,15 +315,21 @@ contract MilestoneEscrow {
         uint256 eventId,
         uint256 milestoneId,
         bool approvalUpheld,
+        uint8 finalScore,
         bytes32 finalReviewId,
         bytes32 finalResultHash
     ) external onlyExecutor nonReentrant whenNotPaused {
         Milestone storage milestone = milestones[eventId][milestoneId];
         Appeal memory appeal = appeals[eventId][milestoneId];
         if (!milestone.appealOpen || appeal.challenger == address(0)) revert InvalidState();
-        if (finalReviewId == bytes32(0) || finalResultHash == bytes32(0)) revert InvalidInput();
+        if (
+            finalReviewId == bytes32(0) || finalResultHash == bytes32(0)
+                || finalScore > 100
+        ) revert InvalidInput();
+        if (approvalUpheld && finalScore < milestone.minimumScore) revert ScoreBelowMinimum();
 
         milestone.appealOpen = false;
+        milestone.approvedScore = finalScore;
         delete appeals[eventId][milestoneId];
         if (approvalUpheld) {
             milestone.reviewId = finalReviewId;
@@ -312,7 +344,7 @@ contract MilestoneEscrow {
             if (!usdc.transfer(appeal.challenger, appeal.bond)) revert TransferFailed();
         }
         emit AppealResolved(
-            eventId, milestoneId, approvalUpheld, finalReviewId, finalResultHash
+            eventId, milestoneId, approvalUpheld, finalScore, finalReviewId, finalResultHash
         );
     }
 

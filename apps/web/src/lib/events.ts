@@ -16,7 +16,10 @@ const createdEvent = parseAbiItem(
 const eventStatuses: EventStatus[] = ["draft", "draft", "active", "completed", "refunded"];
 const zeroHash = `0x${"0".repeat(64)}`;
 
-export async function readMilestoneEvents(): Promise<MilestoneEvent[]> {
+export async function readMilestoneEvents(options?: {
+  wallet?: string;
+  role?: "assigned" | "created" | "related";
+}): Promise<MilestoneEvent[]> {
   if (!isContractConfigured) throw new Error("Base Sepolia escrow is not configured");
   const client = createPublicClient({
     chain: publicConfig.chain,
@@ -72,13 +75,22 @@ export async function readMilestoneEvents(): Promise<MilestoneEvent[]> {
         id: milestoneId,
         criteria: milestone.criteria,
         amountUsdc: Number(formatUnits(milestone.amount, 6)),
+        minimumScore: Number(milestone.minimumScore),
+        approvedScore:
+          milestone.approvedScore === 0 ? undefined : Number(milestone.approvedScore),
         reviewStatus,
         reviewId:
           latestReview?.review_id ||
           (milestone.reviewId === zeroHash ? undefined : milestone.reviewId),
         decision: latestReview?.result.decision,
+        score: latestReview?.result.score,
+        review: latestReview?.result.review,
         explanation: latestReview?.result.explanation,
+        strengths: latestReview?.result.strengths,
+        improvements: latestReview?.result.improvements,
+        suggestions: latestReview?.result.suggestions,
         citations: latestReview?.result.citations,
+        evidenceGaps: latestReview?.result.evidence_gaps,
         resultHash:
           milestone.resultHash === zeroHash ? undefined : milestone.resultHash,
         challengeDeadline:
@@ -96,6 +108,18 @@ export async function readMilestoneEvents(): Promise<MilestoneEvent[]> {
     const block = log.blockNumber
       ? await client.getBlock({ blockNumber: log.blockNumber })
       : undefined;
+    const normalizedWallet = options?.wallet?.toLowerCase();
+    const include =
+      !normalizedWallet ||
+      (options?.role === "assigned" &&
+        record.assignee.toLowerCase() === normalizedWallet) ||
+      (options?.role === "created" &&
+        record.creator.toLowerCase() === normalizedWallet) ||
+      (options?.role !== "assigned" &&
+        options?.role !== "created" &&
+        (record.creator.toLowerCase() === normalizedWallet ||
+          record.assignee.toLowerCase() === normalizedWallet));
+    if (!include) continue;
     output.push({
       id: Number(eventId),
       title: record.title,

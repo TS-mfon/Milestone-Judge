@@ -13,6 +13,12 @@ def _normalize_bool(value) -> bool:
     return str(value).strip().lower() in ("true", "yes", "1")
 
 
+def _normalize_list(raw, maximum: int) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    return [str(item).strip() for item in raw if str(item).strip()][:maximum]
+
+
 def _normalize_result(raw) -> dict:
     if not isinstance(raw, dict):
         raise gl.vm.UserError(f"{ERROR_LLM} Review output must be an object")
@@ -21,31 +27,49 @@ def _normalize_result(raw) -> dict:
     if decision not in ("approved", "rejected", "inconclusive"):
         raise gl.vm.UserError(f"{ERROR_LLM} Unsupported decision")
 
+    try:
+        score = int(raw.get("score", -1))
+    except Exception:
+        raise gl.vm.UserError(f"{ERROR_LLM} Score must be an integer")
+    if score < 0 or score > 100:
+        raise gl.vm.UserError(f"{ERROR_LLM} Score must be between 0 and 100")
+
+    review = str(raw.get("review", "")).strip()
     explanation = str(raw.get("explanation", "")).strip()
-    if len(explanation) < 20:
+    if len(review) < 40 or len(explanation) < 20:
         raise gl.vm.UserError(f"{ERROR_LLM} Explanation is too short")
 
-    citations_raw = raw.get("citations", [])
-    gaps_raw = raw.get("evidence_gaps", [])
-    citations = [str(item).strip() for item in citations_raw if str(item).strip()]
-    gaps = [str(item).strip() for item in gaps_raw if str(item).strip()]
+    citations = _normalize_list(raw.get("citations", []), 12)
+    gaps = _normalize_list(raw.get("evidence_gaps", []), 12)
+    strengths = _normalize_list(raw.get("strengths", []), 12)
+    improvements = _normalize_list(raw.get("improvements", []), 12)
+    suggestions = _normalize_list(raw.get("suggestions", []), 12)
 
     criterion_met = _normalize_bool(raw.get("criterion_met", False))
     measurement_valid = _normalize_bool(raw.get("measurement_valid", False))
     material_exception = _normalize_bool(raw.get("material_exception", False))
     if decision == "approved" and (
-        not criterion_met or not measurement_valid or material_exception or len(citations) == 0
+        not criterion_met
+        or not measurement_valid
+        or material_exception
+        or len(citations) == 0
+        or score < 50
     ):
         raise gl.vm.UserError(f"{ERROR_LLM} Approval is inconsistent with findings")
 
     return {
         "decision": decision,
+        "score": score,
         "criterion_met": criterion_met,
         "measurement_valid": measurement_valid,
         "material_exception": material_exception,
+        "review": review[:8000],
         "explanation": explanation[:4000],
-        "citations": citations[:12],
-        "evidence_gaps": gaps[:12],
+        "strengths": strengths,
+        "improvements": improvements,
+        "suggestions": suggestions,
+        "citations": citations,
+        "evidence_gaps": gaps,
     }
 
 
@@ -124,37 +148,39 @@ Appeal context:
 Inspect the supplied public links when they are material. Return JSON only:
 {{
   "decision": "approved|rejected|inconclusive",
+  "score": 0,
   "criterion_met": true,
   "measurement_valid": true,
   "material_exception": false,
+  "review": "detailed evidence-grounded assessment",
   "explanation": "concise evidence-based explanation",
+  "strengths": ["specific strength demonstrated by the evidence"],
+  "improvements": ["specific deficiency or improvement needed"],
+  "suggestions": ["actionable next step for the assignee"],
   "citations": ["exact public URL or CID"],
   "evidence_gaps": ["missing evidence"]
 }}
 
 Approve only when the evidence directly supports the full criterion. Use
-inconclusive when decisive evidence is missing or unavailable.
+inconclusive when decisive evidence is missing or unavailable. Score completion
+quality from 0 to 100. Keep the score independent of any payout threshold so the
+Base escrow can enforce the creator's chosen minimum.
 """
 
         def leader_fn():
             return _normalize_result(gl.nondet.exec_prompt(prompt, response_format="json"))
 
-        def validator_fn(leaders_res: gl.vm.Result) -> bool:
-            if not isinstance(leaders_res, gl.vm.Return):
-                return False
-            try:
-                validator = leader_fn()
-                leader = leaders_res.calldata
-                return (
-                    leader["decision"] == validator["decision"]
-                    and leader["criterion_met"] == validator["criterion_met"]
-                    and leader["measurement_valid"] == validator["measurement_valid"]
-                    and leader["material_exception"] == validator["material_exception"]
-                )
-            except Exception:
-                return False
-
-        result = gl.vm.run_nondet_unsafe(leader_fn, validator_fn)
+        result = gl.eq_principle.prompt_comparative(
+            leader_fn,
+            principle=(
+                "The decision, criterion_met, measurement_valid, and "
+                "material_exception fields must match exactly. Scores must be "
+                "within 5 points. The review, explanation, strengths, "
+                "improvements, suggestions, citations, and evidence gaps may "
+                "use different wording, but must be materially consistent, "
+                "evidence-grounded, and must not contradict the decision."
+            ),
+        )
         stored = {
             "review_id": review_id,
             "review_kind": review_kind,

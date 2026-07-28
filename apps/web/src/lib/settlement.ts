@@ -57,6 +57,11 @@ export async function settleReview(
     if (review.review_kind !== "initial" || review.result.decision !== "approved") {
       throw new Error("Only an approved initial review can propose payment");
     }
+    if (review.result.score < Number(milestone.minimumScore)) {
+      throw new Error(
+        `GenLayer score ${review.result.score} is below the required ${milestone.minimumScore}`,
+      );
+    }
     if (milestone.approvalProposed || milestone.appealOpen) {
       throw new Error("A Base approval or appeal is already active");
     }
@@ -72,6 +77,7 @@ export async function settleReview(
         eventId,
         milestoneId,
         resultHash,
+        review.result.score,
         challengeDeadline,
       )),
     };
@@ -88,7 +94,9 @@ export async function settleReview(
         reviewId,
         eventId,
         milestoneId,
-        review.result.decision === "approved",
+        review.result.decision === "approved" &&
+          review.result.score >= Number(milestone.minimumScore),
+        review.result.score,
         resultHash,
       )),
     };

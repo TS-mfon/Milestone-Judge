@@ -247,6 +247,7 @@ export function relayApprovalProposal(
   eventId: number,
   milestoneId: number,
   resultHash: `0x${string}`,
+  score: number,
   challengeDeadline: number,
 ) {
   return relay(
@@ -260,6 +261,7 @@ export function relayApprovalProposal(
         BigInt(milestoneId),
         keccak256(stringToHex(reviewId)),
         resultHash,
+        score,
         BigInt(challengeDeadline),
       ],
     }),
@@ -293,6 +295,7 @@ export function relayAppealResolution(
   eventId: number,
   milestoneId: number,
   approvalUpheld: boolean,
+  finalScore: number,
   resultHash: `0x${string}`,
 ) {
   return relay(
@@ -305,6 +308,7 @@ export function relayAppealResolution(
         BigInt(eventId),
         BigInt(milestoneId),
         approvalUpheld,
+        finalScore,
         keccak256(stringToHex(reviewId)),
         resultHash,
       ],

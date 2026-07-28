@@ -3,19 +3,21 @@
 ## Live testnet deployment
 
 - Base Sepolia escrow:
-  `0xc437583f16E613b524F6607d81B628c5e5274f39`
+  `0x47F846c659B4DF565d2e8b1cd32F610E68d11B9A`
 - Base Sepolia USDC:
   `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 - GenLayer StudioNet verifier:
-  `0x90A4396b5b9524501181f4ce8d1fBf42C2836d87`
+  `0x4006FA705a70BF9137e7B5d07555b6E547Cae5c5`
 - Platform owner and executor:
   `0xEd9EDd8586b20524CafA4F568413C504C9B03172`
 - Production application:
   `https://ma-milestone-verifier.vercel.app`
 - Base deployment transaction:
-  `0x9551d10b379f032c064fa589423ddbf6393b52c8f846e66bf72763317806e0f6`
+  `0x24220d7085bcd98188deb14c38ec8b8c8eec17c204541f73e12e68fad3b5c539`
 - GenLayer deployment transaction:
-  `0x152279eed38cec3128448b1bfff0cef36e7e61c6670faf8c6787d3e33b65a55d`
+  `0x8bda0c6180df0afe2e59aa7b5d1e374c4c88b79c6185576f96a4e30e307a15fb`
+- Base index start block:
+  `44728854`
 
 ## 1. Platform wallet
 
@@ -99,9 +101,35 @@ curl -sS https://YOUR_DOMAIN/api/health
 curl -sS https://YOUR_DOMAIN/api/events
 ```
 
-## 6. Live smoke record
+## 6. Scored deployment live smoke
 
-The production path was exercised with Base event `1`, milestone `0`:
+The scored production path was exercised on July 28, 2026 with Base event `1`,
+milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
+
+- Base event creation:
+  `0xfadc8c5b0c39f10a057592b187c043664a628a337f871a79969cf38b981d82dc`
+- Base activation:
+  `0x7ceb74307012b5c5ee54202b11817314322b6b2a211c8d3772b77abfe4aba683`
+- GenLayer review:
+  `review_81f6de8045aa4c7fd0f112b810c1f2d549e3fb7d87771faae543eb435214d1e8`
+- GenLayer transaction:
+  `0xbbd789ea5154afbec2de1a26a2f3969d6ce600ca344cebacfa26ca1d97c053b1`
+- Comparative consensus decision and score:
+  `approved`, `95`
+- 1Shot task:
+  `0xf09e9019dc4856c33c7790a0be84b1f358e066917828df2576afd06cbceb34bd`
+- 1Shot-confirmed Base proposal:
+  `0x13c3cfdee389722476b2d0db26ed2e2bb40e0b750b2542433d441ba410389f3b`
+- Challenge deadline:
+  `July 29, 2026 at 08:44:14 UTC`
+
+The milestone remains locked during its challenge window. Once that exact
+deadline passes, the payout action can release the 1 USDC milestone once.
+
+## 7. Previous deployment smoke record
+
+The previous contract version was exercised with Base event `1`, milestone `0`.
+Those identifiers remain historical and are not part of the scored deployment:
 
 - GenLayer review:
   `review_8006e61a889ca10aca8457cee4f1dd7938e85c2e1016428d87c0cfb877ba091b`

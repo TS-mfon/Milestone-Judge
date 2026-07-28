@@ -3,7 +3,8 @@
 Milestone Verifier is a USDC milestone escrow for Base Sepolia with subjective
 evidence review finalized by GenLayer. Event creators lock the full milestone
 budget, assignees submit evidence, and a narrowly authorized platform executor
-relays exact milestone payouts after a finalized GenLayer approval.
+relays exact milestone payouts after a finalized GenLayer approval whose score
+meets the creator's on-chain threshold.
 
 ## Repository
 
@@ -26,9 +27,9 @@ and GenLayer StudioNet addresses described in `docs/deployment.md`.
 ## Live contracts
 
 - Base Sepolia escrow:
-  `0xc437583f16E613b524F6607d81B628c5e5274f39`
+  `0x47F846c659B4DF565d2e8b1cd32F610E68d11B9A`
 - GenLayer StudioNet verifier:
-  `0x90A4396b5b9524501181f4ce8d1fBf42C2836d87`
+  `0x4006FA705a70BF9137e7B5d07555b6E547Cae5c5`
 - Hosted 1Shot endpoint:
   `https://relayer.1shotapi.dev/relayers`
 - Production application:

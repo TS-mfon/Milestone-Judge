@@ -31,6 +31,7 @@ export const escrowAbi = [
       { name: "eventId", type: "uint256" },
       { name: "criteria", type: "string[]" },
       { name: "amounts", type: "uint256[]" },
+      { name: "minimumScores", type: "uint8[]" },
     ],
     outputs: [],
   },
@@ -77,6 +78,7 @@ export const escrowAbi = [
       { name: "eventId", type: "uint256" },
       { name: "milestoneId", type: "uint256" },
       { name: "approvalUpheld", type: "bool" },
+      { name: "finalScore", type: "uint8" },
       { name: "finalReviewId", type: "bytes32" },
       { name: "finalResultHash", type: "bytes32" },
     ],
@@ -91,6 +93,7 @@ export const escrowAbi = [
       { name: "milestoneId", type: "uint256" },
       { name: "reviewId", type: "bytes32" },
       { name: "resultHash", type: "bytes32" },
+      { name: "score", type: "uint8" },
       { name: "challengeDeadline", type: "uint64" },
     ],
     outputs: [],
@@ -149,6 +152,8 @@ export const escrowAbi = [
           { name: "reviewId", type: "bytes32" },
           { name: "resultHash", type: "bytes32" },
           { name: "challengeDeadline", type: "uint64" },
+          { name: "minimumScore", type: "uint8" },
+          { name: "approvedScore", type: "uint8" },
           { name: "approvalProposed", type: "bool" },
           { name: "appealOpen", type: "bool" },
           { name: "paid", type: "bool" },
@@ -160,6 +165,13 @@ export const escrowAbi = [
 ] as const;
 
 export const erc20Abi = [
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [{ name: "account", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
   {
     type: "function",
     name: "approve",
