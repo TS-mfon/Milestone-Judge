@@ -7,14 +7,13 @@ locks the aggregate milestone amount, enforces the challenge deadline, prevents
 duplicate releases, and returns only unpaid funds after expiry.
 
 GenLayer is authoritative for subjective evidence judgments. The intelligent
-contract accepts requests only from the platform wallet, uses prompt-comparative
+contract accepts requests only from the GenLayer platform signer, uses prompt-comparative
 consensus over the same public evidence, and stores a normalized scored result
 with review, strengths, improvements, suggestions, citations, and evidence gaps.
 
-The Vercel service is an explicit cross-chain executor. It does not select
-payment amounts. It verifies signed requests, waits for successful GenLayer
-finalization, reads the stored result, and asks 1Shot to relay the exact Base
-contract call.
+The Vercel service coordinates two separate signers. The GenLayer platform
+signer only submits authorized review requests. The Base executor only signs
+hosted 1Shot settlement authorizations. Neither signer selects payment amounts.
 
 There is no application database, queue, cron job, or webhook store. Event and
 settlement state is read from Base Sepolia and review state is read from
@@ -25,7 +24,7 @@ GenLayer StudioNet on every request.
 1. The assignee signs an EIP-712 review request.
 2. The API validates expiry, signer, event state, assignee, criterion hash, and
    remaining deadline.
-3. The platform wallet submits `request_review` directly to StudioNet.
+3. The GenLayer-only platform signer submits `request_review` directly to StudioNet.
 4. The client polls the GenLayer transaction and stored review.
 5. Rejected or inconclusive results remain on-chain and may be resubmitted with
    a new attempt.

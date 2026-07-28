@@ -25,17 +25,25 @@ deterministic task ID prevents an ordinary duplicate submission.
   per entry in the 1Shot `transactions` array.
 - Missing fee amount: inspect `success` and `error` from
   `relayer_estimate7710Transaction`.
-- Insufficient payment: fund the platform wallet with Base Sepolia USDC. No
+- Insufficient payment: fund the Base settlement executor with Base Sepolia USDC. No
   native ETH or 1Shot API key is required by the hosted flow.
 
-## Compromised platform wallet
+## Compromised GenLayer platform signer
+
+1. Call `set_platform_wallet` from the GenLayer contract owner.
+2. Replace `GENLAYER_PLATFORM_PRIVATE_KEY` in Vercel.
+3. Inspect the finalized rotation receipt and confirm contract execution
+   succeeded.
+4. Confirm unauthorized accounts cannot submit reviews.
+5. Confirm the new signer can submit a review before deleting the retired key.
+
+## Compromised Base settlement executor
 
 1. Pause `MilestoneEscrow`.
 2. Start a platform executor transfer from the owner account.
 3. Accept from a newly generated platform account.
-4. Call `set_platform_wallet` on the GenLayer verifier from its owner account.
-5. Replace `PLATFORM_PRIVATE_KEY` in Vercel.
-6. Resume only after checking recent GenLayer reviews and 1Shot task IDs against
+4. Replace `BASE_EXECUTOR_PRIVATE_KEY` in Vercel.
+5. Resume only after checking recent GenLayer reviews and 1Shot task IDs against
    Base milestone state.
 
 ## Refund recovery

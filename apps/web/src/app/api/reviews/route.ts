@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { keccak256, stringToHex } from "viem";
 import { verifyReviewSignature } from "@/lib/auth";
 import { validateOnchainReview } from "@/lib/base";
-import { submitGenLayerReview } from "@/lib/genlayer";
+import { readReview, submitGenLayerReview } from "@/lib/genlayer";
 import { reviewRequestSchema } from "@/lib/review-schema";
 import type { ReviewRequest } from "@/lib/types";
 
@@ -35,17 +35,19 @@ export async function POST(request: Request) {
           kind: review.kind,
           eventId: review.eventId,
           milestoneId: review.milestoneId,
-          attemptId: review.attemptId,
           requester: review.requester.toLowerCase(),
           criterionHash: review.criterionHash,
           evidenceStatement: review.evidenceStatement,
           evidenceLinks: review.evidenceLinks,
           appealContext: review.appealContext,
-          nonce: review.nonce,
         }),
       ),
     );
     const reviewId = `review_${digest.slice(2)}`;
+    const existing = await readReview(reviewId);
+    if (existing) {
+      return NextResponse.json({ id: reviewId, status: "finalized", review: existing });
+    }
     const transactionHash = await submitGenLayerReview(reviewId, review);
     return NextResponse.json(
       { id: reviewId, status: "submitted", transactionHash },

@@ -8,29 +8,40 @@
   `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 - GenLayer StudioNet verifier:
   `0x4006FA705a70BF9137e7B5d07555b6E547Cae5c5`
-- Platform owner and executor:
+- Base owner and settlement executor:
   `0xEd9EDd8586b20524CafA4F568413C504C9B03172`
+- GenLayer review signer:
+  `0xAb48af420171CAd87b3A8EBa233C8F7ef4805BDb`
 - Production application:
   `https://ma-milestone-verifier.vercel.app`
 - Base deployment transaction:
   `0x24220d7085bcd98188deb14c38ec8b8c8eec17c204541f73e12e68fad3b5c539`
 - GenLayer deployment transaction:
   `0x8bda0c6180df0afe2e59aa7b5d1e374c4c88b79c6185576f96a4e30e307a15fb`
+- GenLayer signer rotation transaction:
+  `0x7a6ea4d882c9b724ca96c6cf35009761abb19bda7c55d128be58e1ba605800c9`
 - Base index start block:
   `44728854`
 
-## 1. Platform wallet
+## 1. Separate service signers
 
-Generate one EVM private key outside the application runtime:
+Generate a GenLayer-only signer outside the application runtime:
 
 ```bash
-npm run wallet:generate
+PLATFORM_WALLET_OUTPUT=.platform-genlayer-review.local.json \
+  npm run wallet:generate
 ```
 
 The command writes a gitignored `0600` file. Move the private key into the
 deployment secret manager, record only its public address in contract
-configuration, and delete the local file. The same account signs GenLayer
-review transactions and the authorization used by the 1Shot relayer.
+configuration, and delete the local file after rotation.
+
+Keep a different key as the Base `platformExecutor`. That key is used only for
+hosted 1Shot settlement authorization and must not be configured as the
+GenLayer review signer.
+
+The live verifier signer was rotated on July 28, 2026. The rotation transaction
+finalized with successful execution and unanimous comparative consensus.
 
 ## 2. Base Sepolia
 
@@ -64,7 +75,7 @@ Configure the GenLayer CLI for StudioNet, then deploy:
 genlayer network set studionet
 genlayer deploy \
   --contract contracts/genlayer/milestone_verifier.py \
-  --args "$PLATFORM_EXECUTOR_ADDRESS"
+  --args "$GENLAYER_PLATFORM_SIGNER_ADDRESS"
 ```
 
 Inspect the finalized receipt and confirm execution success before recording the
@@ -81,18 +92,18 @@ ONESHOT_API_URL=https://relayer.1shotapi.dev/relayers
 No 1Shot API key, payment-token setting, or stored authorization list is used.
 At request time the adapter calls `relayer_getCapabilities`, selects the
 advertised Base Sepolia USDC and fee collector, creates exact-call MetaMask
-delegations, signs the EIP-7702 authorization with `PLATFORM_PRIVATE_KEY`,
+delegations, signs the EIP-7702 authorization with `BASE_EXECUTOR_PRIVATE_KEY`,
 estimates the fee, and submits through `relayer_send7710Transaction`.
 
-The platform wallet must retain enough Base Sepolia USDC to pay hosted relay
+The Base settlement executor must retain enough Base Sepolia USDC to pay hosted relay
 fees.
 
 ## 5. Vercel
 
 Import the GitHub repository into Vercel with the repository root as the project
 root and add the variables from `.env.example`. Keep only
-`PLATFORM_PRIVATE_KEY` server-only. Do not provision a database, queue, cron, or
-webhook.
+`GENLAYER_PLATFORM_PRIVATE_KEY` and `BASE_EXECUTOR_PRIVATE_KEY` server-only. Do
+not provision a database, queue, cron, or webhook.
 
 After deployment, verify:
 
@@ -101,7 +112,40 @@ curl -sS https://YOUR_DOMAIN/api/health
 curl -sS https://YOUR_DOMAIN/api/events
 ```
 
-## 6. Scored deployment live smoke
+## 6. Separated-signer production smoke
+
+The fully separated production path was exercised on July 28, 2026 with Base
+event `3`, milestone `0`, a 0.1 USDC escrow, and an on-chain minimum score of
+`80`:
+
+- Base event creation:
+  `0xe1a8ba91db81d13bf93a0eed181af8c9b3802f833ebe6fdf27e874a84d86f2fb`
+- Base milestone addition:
+  `0x1ee7ed7a405c50e5857692b322fd647cc11757797157606f767a38b52f260162`
+- USDC approval:
+  `0x7c623bea4a914e7fb36e789f3aa097bb5b86215e909af8bf25ac561c9ee23f74`
+- Base activation:
+  `0x1633433380f8ef952415753d3ccc4685357e6cbbcaeb624ac435d6240bf4c20b`
+- GenLayer review:
+  `review_1ecf30738fac7bdcf5791cf458e5a258f7164401769b6a27462b5471cef0b30a`
+- GenLayer transaction:
+  `0x6a09dc240bccf9951fa5ed43f94ae559f195b265b13a3aba0f7bd4b6188b5686`
+- Comparative consensus decision and score:
+  `approved`, `100`
+- Hosted 1Shot task:
+  `0x1af69dbec078a112c243a4504bfef2550b60a2cc13cadba9a1206bb239a23847`
+- 1Shot-confirmed Base proposal:
+  `0xbcbe3d95457996771763e5ddcd8888a93f73e68c8e0ee3b52fc847822c7946e8`
+- Challenge deadline:
+  `July 29, 2026 at 10:03:50 UTC`
+
+The evidence authorization was signed off-chain by the event assignee. Vercel
+submitted the review using only the GenLayer signer
+`0xAb48af420171CAd87b3A8EBa233C8F7ef4805BDb`; hosted 1Shot submitted the Base
+proposal using the separate executor. A repeated initial review returned HTTP
+`409` because the milestone was already in its challenge window.
+
+## 7. Scored deployment live smoke
 
 The scored production path was exercised on July 28, 2026 with Base event `1`,
 milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
@@ -126,7 +170,7 @@ milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
 The milestone remains locked during its challenge window. Once that exact
 deadline passes, the payout action can release the 1 USDC milestone once.
 
-## 7. Previous deployment smoke record
+## 8. Previous deployment smoke record
 
 The previous contract version was exercised with Base event `1`, milestone `0`.
 Those identifiers remain historical and are not part of the scored deployment:

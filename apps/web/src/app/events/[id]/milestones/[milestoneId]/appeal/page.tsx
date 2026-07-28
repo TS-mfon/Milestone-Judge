@@ -3,7 +3,7 @@
 import { ArrowLeft, LoaderCircle, ShieldAlert, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPublicClient, http, keccak256, stringToHex } from "viem";
 import { useWallet } from "@/components/wallet-provider";
 import { reviewTypedData } from "@/lib/auth";
@@ -11,9 +11,18 @@ import { useEvents } from "@/lib/client-events";
 import { publicConfig } from "@/lib/config";
 import { erc20Abi, escrowAbi } from "@/lib/contracts";
 import { apiError, userError } from "@/lib/errors";
+import {
+  readPendingReview,
+  savePendingReview,
+  type PendingReview,
+} from "@/lib/pending-review";
 import type { ReviewRequest } from "@/lib/types";
 import { uniqueAttemptId, unixSeconds } from "@/lib/time";
-import { baseWalletClient, ensureBaseSepolia } from "@/lib/wallet";
+import {
+  baseWalletClient,
+  ensureBaseSepolia,
+  signatureWalletClient,
+} from "@/lib/wallet";
 
 export default function AppealPage() {
   const params = useParams<{ id: string; milestoneId: string }>();
@@ -29,12 +38,30 @@ export default function AppealPage() {
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
   const [error, setError] = useState("");
+  const [pending, setPending] = useState<PendingReview | null>(null);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+  const submissionLock = useRef(false);
+
+  useEffect(() => {
+    const initial = window.setTimeout(
+      () => {
+        setPending(readPendingReview("appeal", eventId, milestoneId));
+        setPendingLoaded(true);
+      },
+      0,
+    );
+    return () => window.clearTimeout(initial);
+  }, [eventId, milestoneId]);
 
   async function submit(formEvent: React.FormEvent) {
     formEvent.preventDefault();
+    if (submissionLock.current || pending) {
+      return setError("An appeal review is already in progress.");
+    }
     if (!address || !event || !milestone) return;
     const links = linksText.split("\n").map((item) => item.trim()).filter(Boolean);
     if (links.length === 0) return setError("Provide public evidence supporting the appeal.");
+    submissionLock.current = true;
     setBusy(true);
     setError("");
     try {
@@ -82,18 +109,42 @@ export default function AppealPage() {
         nonce: crypto.randomUUID(),
         expiresAt: unixSeconds() + 900,
       } satisfies Omit<ReviewRequest, "signature">;
-      const signature = await client.signTypedData({ account, ...reviewTypedData(unsigned) });
+      const signatureClient = signatureWalletClient(account);
+      const signature = await signatureClient.client.signTypedData({
+        account,
+        ...reviewTypedData(unsigned),
+      });
       const response = await fetch("/api/reviews", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ ...unsigned, signature }),
       });
       if (!response.ok) throw new Error(await apiError(response, "Appeal review failed."));
-      const result = (await response.json()) as { id: string; transactionHash: string };
-      router.push(`/reviews/${encodeURIComponent(result.id)}?transactionHash=${result.transactionHash}`);
+      const result = (await response.json()) as {
+        id: string;
+        status: "submitted" | "finalized";
+        transactionHash?: string;
+      };
+      if (result.status === "submitted" && result.transactionHash) {
+        const nextPending: PendingReview = {
+          id: result.id,
+          transactionHash: result.transactionHash,
+          kind: "appeal",
+          eventId,
+          milestoneId,
+          createdAt: uniqueAttemptId(),
+        };
+        savePendingReview(nextPending);
+        setPending(nextPending);
+      }
+      const query = result.transactionHash
+        ? `?transactionHash=${encodeURIComponent(result.transactionHash)}`
+        : "";
+      router.push(`/reviews/${encodeURIComponent(result.id)}${query}`);
     } catch (caught) {
       setError(userError(caught, "Appeal submission failed."));
     } finally {
+      submissionLock.current = false;
       setBusy(false);
       setStage("");
     }
@@ -102,6 +153,17 @@ export default function AppealPage() {
   if (!address) return <div className="connect-state"><Wallet size={28} /><h2>Connect the creator wallet</h2><button className="primary-button" onClick={() => void connect()}>Connect wallet</button></div>;
   if (loading && !event) return <div className="loading-state"><LoaderCircle className="spin" />Loading appeal state</div>;
   if (!event || !milestone) return <div className="connect-state"><h2>Appeal unavailable</h2><p>Only the event creator can access this workflow.</p></div>;
+  if (!pendingLoaded) return <div className="loading-state"><LoaderCircle className="spin" />Checking appeal status</div>;
+  if (pending) {
+    return (
+      <div className="connect-state">
+        <LoaderCircle className="spin" size={28} />
+        <h2>Appeal review in progress</h2>
+        <p>Wait for the active GenLayer result before requesting another appeal review.</p>
+        <Link className="primary-button" href={`/reviews/${encodeURIComponent(pending.id)}?transactionHash=${encodeURIComponent(pending.transactionHash)}`}>Open current review</Link>
+      </div>
+    );
+  }
 
   return (
     <>

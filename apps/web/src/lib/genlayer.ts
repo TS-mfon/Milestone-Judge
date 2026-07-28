@@ -15,8 +15,8 @@ function readClient() {
 }
 
 function writeClient() {
-  const privateKey = getServerConfig().platformPrivateKey;
-  if (!privateKey) throw new Error("PLATFORM_PRIVATE_KEY is not configured");
+  const privateKey = getServerConfig().genlayerPlatformPrivateKey;
+  if (!privateKey) throw new Error("GENLAYER_PLATFORM_PRIVATE_KEY is not configured");
   return createClient({
     chain: chain(),
     account: createAccount(privateKey as `0x${string}`),

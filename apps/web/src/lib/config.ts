@@ -21,7 +21,10 @@ export const isContractConfigured =
 
 export function getServerConfig() {
   return {
-    platformPrivateKey: process.env.PLATFORM_PRIVATE_KEY || "",
+    genlayerPlatformPrivateKey:
+      process.env.GENLAYER_PLATFORM_PRIVATE_KEY || "",
+    baseExecutorPrivateKey:
+      process.env.BASE_EXECUTOR_PRIVATE_KEY || "",
     genlayerNetwork: process.env.GENLAYER_NETWORK || "studionet",
     oneShotApiUrl:
       process.env.ONESHOT_API_URL || "https://relayer.1shotapi.dev/relayers",

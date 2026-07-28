@@ -95,7 +95,7 @@ async function main() {
   const eventId = Number(process.env.SMOKE_EVENT_ID || "1");
   const milestoneId = Number(process.env.SMOKE_MILESTONE_ID || "0");
   const settle = process.argv.includes("--settle");
-  const privateKey = required("PLATFORM_PRIVATE_KEY");
+  const privateKey = required("SMOKE_ASSIGNEE_PRIVATE_KEY");
   const escrowAddress = required("NEXT_PUBLIC_ESCROW_ADDRESS");
   const rpcUrl = process.env.NEXT_PUBLIC_BASE_RPC_URL || "https://sepolia.base.org";
   const account = privateKeyToAccount(
@@ -154,8 +154,7 @@ async function main() {
   const signature = await account.signTypedData({
     domain: {
       name: "Milestone Verifier",
-      version: "1",
-      chainId: baseSepolia.id,
+      version: "2",
       verifyingContract: escrowAddress,
     },
     types: reviewTypes,

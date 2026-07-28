@@ -6,9 +6,10 @@ Milestone Verifier lets an organization or individual create an event, assign
 one recipient wallet, define any practical number of natural-language
 milestones, and lock the complete milestone budget in USDC on Base Sepolia.
 
-The recipient submits public evidence and signs the request. The platform wallet
-submits that evidence to GenLayer. Approved results enter a challenge window and
-are then paid through a 1Shot-relayed call to the Base escrow contract.
+The recipient submits public evidence and signs the request. A GenLayer-only
+platform signer submits that evidence to GenLayer. Approved results enter a
+challenge window and are then paid through a separately authorized 1Shot Base
+executor.
 
 ## Implemented Architecture
 
@@ -30,7 +31,7 @@ are then paid through a 1Shot-relayed call to the Base escrow contract.
 3. Assignee signs an EIP-712 request containing the funded criterion hash.
 4. API verifies signer, event state, criterion, deadline, and signed request
    expiry; the deterministic review ID prevents duplicate storage.
-5. The platform wallet submits the review directly to GenLayer and the
+5. The GenLayer-only platform signer submits the review directly to GenLayer and the
    intelligent contract indexes the latest review for the Base milestone.
 6. Validators use GenLayer comparative consensus to return a decision, 0-100
    score, detailed review, strengths, improvements, suggestions, citations, and
@@ -46,7 +47,7 @@ are then paid through a 1Shot-relayed call to the Base escrow contract.
 
 ## Security Invariants
 
-- The platform executor cannot select payout recipients or amounts.
+- The separate Base executor cannot select payout recipients or amounts.
 - Milestones cannot change after funding.
 - A milestone cannot be paid twice.
 - Payout review IDs and result hashes must match the proposed approval.

@@ -25,7 +25,7 @@ export default function Home() {
       <section className="landing-band">
         <article><LockKeyhole /><strong>Funds locked on Base</strong><p>Each milestone has an exact USDC allocation and creator-defined score threshold.</p></article>
         <article><BrainCircuit /><strong>Comparative consensus</strong><p>GenLayer scores, reviews, cites evidence, and returns concrete improvements.</p></article>
-        <article><ShieldCheck /><strong>Platform settlement</strong><p>The platform wallet alone submits reviews and hosted 1Shot relays Base settlement.</p></article>
+        <article><ShieldCheck /><strong>Separated signers</strong><p>A GenLayer-only signer submits reviews while hosted 1Shot uses a separate Base executor.</p></article>
       </section>
     </div>
   );

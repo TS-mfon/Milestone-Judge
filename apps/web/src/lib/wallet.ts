@@ -3,13 +3,51 @@ import { publicConfig } from "./config";
 
 const baseSepoliaHex = `0x${publicConfig.chain.id.toString(16)}`;
 
+export interface Eip1193Provider {
+  request(args: { method: string; params?: unknown[] | object }): Promise<unknown>;
+}
+
 function provider() {
   if (!window.ethereum) throw new Error("Install an EVM wallet to continue.");
   return window.ethereum;
 }
 
-export async function ensureBaseSepolia() {
-  const ethereum = provider();
+function errorDetails(error: unknown): { codes: number[]; messages: string[] } {
+  const codes: number[] = [];
+  const messages: string[] = [];
+  const seen = new Set<unknown>();
+  const visit = (value: unknown) => {
+    if (!value || seen.has(value)) return;
+    seen.add(value);
+    if (typeof value === "string") {
+      messages.push(value);
+      return;
+    }
+    if (typeof value !== "object") return;
+    const record = value as Record<string, unknown>;
+    if (typeof record.code === "number") codes.push(record.code);
+    if (typeof record.message === "string") messages.push(record.message);
+    for (const key of ["cause", "data", "error", "originalError"]) visit(record[key]);
+  };
+  visit(error);
+  return { codes, messages };
+}
+
+function isUnknownChain(error: unknown) {
+  const details = errorDetails(error);
+  if (details.codes.includes(4902)) return true;
+  const message = details.messages.join(" ").toLowerCase();
+  return [
+    "unrecognized chain id",
+    "unknown chain",
+    "chain has not been added",
+    "chain not added",
+    "unsupported chain",
+    "network is not available",
+  ].some((pattern) => message.includes(pattern));
+}
+
+export async function switchToBaseSepolia(ethereum: Eip1193Provider) {
   const current = (await ethereum.request({ method: "eth_chainId" })) as string;
   if (current.toLowerCase() === baseSepoliaHex) return;
 
@@ -19,8 +57,7 @@ export async function ensureBaseSepolia() {
       params: [{ chainId: baseSepoliaHex }],
     });
   } catch (error) {
-    const code = (error as { code?: number }).code;
-    if (code !== 4902) throw error;
+    if (!isUnknownChain(error)) throw error;
     await ethereum.request({
       method: "wallet_addEthereumChain",
       params: [
@@ -43,6 +80,17 @@ export async function ensureBaseSepolia() {
   if (switched.toLowerCase() !== baseSepoliaHex) {
     throw new Error("Wallet did not switch to Base Sepolia.");
   }
+}
+
+export async function ensureBaseSepolia() {
+  return switchToBaseSepolia(provider());
+}
+
+export function signatureWalletClient(account: Address) {
+  return {
+    account,
+    client: createWalletClient({ transport: custom(provider()) }),
+  };
 }
 
 export async function connectBaseWallet() {

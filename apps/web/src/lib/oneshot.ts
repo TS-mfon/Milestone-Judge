@@ -64,8 +64,8 @@ function relayerUrl() {
 }
 
 function platformPrivateKey() {
-  const value = getServerConfig().platformPrivateKey;
-  if (!value) throw new Error("PLATFORM_PRIVATE_KEY is not configured");
+  const value = getServerConfig().baseExecutorPrivateKey;
+  if (!value) throw new Error("BASE_EXECUTOR_PRIVATE_KEY is not configured");
   return (value.startsWith("0x") ? value : `0x${value}`) as Hex;
 }
 

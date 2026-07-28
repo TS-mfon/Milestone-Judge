@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useState } from "react";
+import { clearPendingReview } from "@/lib/pending-review";
 import type { StoredReview } from "@/lib/types";
 
 type ReviewResponse = {
@@ -36,6 +37,13 @@ function ReviewContent() {
       const response = await fetch(`/api/reviews/${encodeURIComponent(reviewId)}${query}`, { cache: "no-store" });
       const result = (await response.json()) as ReviewResponse & { error?: string };
       if (!response.ok) throw new Error(result.error || "Unable to read review.");
+      if (result.review) {
+        clearPendingReview(
+          result.review.review_kind,
+          Number(result.review.event_id),
+          Number(result.review.milestone_id),
+        );
+      }
       setData(result);
       setError("");
     } catch (caught) {

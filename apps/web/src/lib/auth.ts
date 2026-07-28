@@ -28,8 +28,7 @@ export function reviewTypedData(request: Omit<ReviewRequest, "signature">) {
   return {
     domain: {
       name: "Milestone Verifier",
-      version: "1",
-      chainId: publicConfig.chain.id,
+      version: "2",
       verifyingContract: publicConfig.escrowAddress,
     },
     types: reviewTypes,
