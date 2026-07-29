@@ -50,15 +50,15 @@ in [`docs/deployment.md`](docs/deployment.md).
 - Returns a decision, score, detailed review, strengths, improvements,
   suggestions, citations, and evidence gaps.
 - Uses hosted 1Shot to relay exact executor calls on Base Sepolia.
-- Runs a stateless Vercel settlement cron every minute, independent of browser
-  tabs or connected wallets.
+- Runs a stateless GitHub Actions settlement keeper every five minutes,
+  independent of browser tabs or connected wallets.
 - Automatically proposes and releases the exact milestone amount after an
   approved verdict meets the funded minimum and any selected challenge period
   has elapsed.
 - Releases each milestone once and only to the original assignee.
 - Refunds only the unpaid event balance after the event deadline.
 - Uses no application database, queue, or webhook persistence; the settlement
-  cron reconstructs pending work from on-chain state on every run.
+  keeper reconstructs pending work from on-chain state on every run.
 
 ## Architecture
 
@@ -69,7 +69,7 @@ flowchart LR
   Web -->|GenLayer platform signer| GenLayer[GenLayer verifier]
   GenLayer -->|comparative consensus verdict| Web
   Web -->|Base executor authorization| OneShot[Hosted 1Shot relayer]
-  Cron[Vercel cron] -->|scan on-chain state| Web
+  Keeper[GitHub Actions keeper] -->|scan on-chain state| Web
   OneShot -->|proposal, appeal resolution, payout| Base
   Base -->|USDC| Assignee
 ```
@@ -113,7 +113,8 @@ The application is a stateless coordinator. It:
 - submits GenLayer transactions with the server-only platform key;
 - builds exact-call 1Shot delegations;
 - never chooses the payout recipient or amount.
-- scans on-chain state through an authenticated Vercel cron without a database.
+- scans on-chain state through an authenticated keeper endpoint without a
+  database.
 
 Vercel is not a canonical datastore. Restarting or redeploying the application
 does not remove event, review, or escrow state.
@@ -167,8 +168,8 @@ does not remove event, review, or escrow state.
 6. The GenLayer-only platform signer calls GenLayer `request_review`.
 7. GenLayer retrieves the public sources, then validators produce and compare
    independent verdicts, including exact agreement on threshold crossing.
-8. The authenticated Vercel cron scans Base and GenLayer every minute and asks
-   hosted 1Shot to record eligible approvals.
+8. The authenticated GitHub Actions keeper scans Base and GenLayer every five
+   minutes and asks hosted 1Shot to record eligible approvals.
 9. For instant events it releases immediately. For challenged events it waits
    until the creator-selected period expires and no appeal is open.
 10. The escrow transfers the exact funded amount to the assignee. This process
@@ -335,8 +336,8 @@ RPC endpoints must be reachable.
 | `BASE_EXECUTOR_PRIVATE_KEY` | Server secret | Hosted 1Shot Base executor only |
 | `GENLAYER_NETWORK` | Server | `studionet` |
 | `ONESHOT_API_URL` | Server | Hosted relayer URL |
-| `CRON_SECRET` | Server secret | Authenticates Vercel settlement cron calls |
-| `AUTOMATION_MAX_ACTIONS` | Server | Maximum settlement actions per cron run |
+| `CRON_SECRET` | Server secret | Authenticates settlement keeper calls |
+| `AUTOMATION_MAX_ACTIONS` | Server | Maximum settlement actions per keeper run |
 
 Never expose either private key through a `NEXT_PUBLIC_` variable, commit it to
 Git, or place it in preview deployments.

@@ -18,7 +18,7 @@ hosted 1Shot settlement authorizations. Neither signer selects payment amounts.
 
 There is no application database, queue, or webhook store. Event and settlement
 state is read from Base Sepolia and review state is read from GenLayer StudioNet
-on every request and every stateless cron run.
+on every request and every stateless keeper run.
 
 ## Review lifecycle
 
@@ -29,12 +29,12 @@ on every request and every stateless cron run.
 4. The client polls the GenLayer transaction and stored review.
 5. Rejected or inconclusive results remain on-chain and may be resubmitted with
    a new attempt.
-6. For an approved review whose score meets the funded threshold, the Vercel
-   cron discovers the finalized on-chain review without browser state.
+6. For an approved review whose score meets the funded threshold, the GitHub
+   Actions keeper discovers the finalized on-chain review without browser state.
 7. Hosted 1Shot relays `proposeMilestoneApproval` with an exact-call delegation.
 8. Instant events become payable immediately. Challenge-enabled events remain
    locked for their creator-selected period and may be appealed.
-9. A later cron run relays `releaseMilestone` when the milestone is eligible.
+9. A later keeper run relays `releaseMilestone` when the milestone is eligible.
 10. The UI indexes `MilestoneReleased` logs for payment time and transaction
     history.
 

@@ -1,0 +1,25 @@
+name: Settlement Keeper
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: settlement-keeper
+  cancel-in-progress: false
+
+jobs:
+  settle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Advance eligible on-chain settlements
+        env:
+          SETTLEMENT_CRON_SECRET: ${{ secrets.SETTLEMENT_CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --retry 2 \
+            --max-time 210 \
+            -H "Authorization: Bearer ${SETTLEMENT_CRON_SECRET}" \
+            https://ma-milestone-verifier.vercel.app/api/automation/settle

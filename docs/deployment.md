@@ -114,10 +114,12 @@ curl -sS https://YOUR_DOMAIN/api/health
 curl -sS https://YOUR_DOMAIN/api/events
 ```
 
-Vercel invokes `/api/automation/settle` every minute and sends `CRON_SECRET` as
-a bearer token. The route derives pending work only from Base and GenLayer
-state, so it does not require a browser tab or persistent off-chain state. Test
-it manually with:
+The GitHub Actions `Settlement Keeper` workflow invokes
+`/api/automation/settle` every five minutes and sends the repository secret
+`SETTLEMENT_CRON_SECRET` as a bearer token. Its value must match Vercel's
+`CRON_SECRET`. The route derives pending work only from Base and GenLayer state,
+so it does not require a browser tab or persistent off-chain state. Test it
+manually with:
 
 ```bash
 curl -sS -H "Authorization: Bearer $CRON_SECRET" \
