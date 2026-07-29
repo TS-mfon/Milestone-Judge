@@ -25,6 +25,7 @@ const escrowAbi = [
           { name: "status", type: "uint8" },
           { name: "milestoneCount", type: "uint32" },
           { name: "paidCount", type: "uint32" },
+          { name: "challengePeriod", type: "uint32" },
           { name: "totalAmount", type: "uint256" },
           { name: "paidAmount", type: "uint256" },
           { name: "title", type: "string" },

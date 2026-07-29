@@ -25,6 +25,12 @@ type ReviewResponse = {
   transaction?: { status?: string; executionResult?: string };
 };
 
+type SettlementResponse = {
+  status?: "paid" | "challenge-window";
+  challengeDeadline?: string;
+  error?: string;
+};
+
 function ReviewContent() {
   const params = useParams<{ id: string }>();
   const search = useSearchParams();
@@ -90,7 +96,12 @@ function ReviewContent() {
         if (!response.ok) {
           throw new Error(await apiError(response, "Automatic payout failed."));
         }
-        setSettlement("Payout confirmed on Base Sepolia");
+        const result = (await response.json()) as SettlementResponse;
+        setSettlement(
+          result.status === "challenge-window"
+            ? `Challenge window open until ${new Date(Number(result.challengeDeadline) * 1000).toLocaleString()}`
+            : "Payout confirmed on Base Sepolia",
+        );
       })
       .catch((caught) => {
         setSettlement("");
@@ -132,14 +143,14 @@ function ReviewContent() {
       </section>
       {result.decision === "approved" && (
         <section className="automatic-payout-status">
-          {settlement === "Payout confirmed on Base Sepolia" ? (
+          {settlement === "Payout confirmed on Base Sepolia" || settlement.startsWith("Challenge window open") ? (
             <CheckCircle2 size={19} />
           ) : (
             <LoaderCircle className="spin" size={19} />
           )}
           <div>
             <strong>{settlement || "Preparing automatic payout"}</strong>
-            <p>Passing reviews are settled automatically when the score meets the funded minimum.</p>
+            <p>The settlement automation continues even after this page is closed.</p>
           </div>
           <CircleDollarSign size={22} />
         </section>

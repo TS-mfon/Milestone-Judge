@@ -23,7 +23,11 @@ function writeClient() {
   });
 }
 
-export async function submitGenLayerReview(reviewId: string, request: ReviewRequest) {
+export async function submitGenLayerReview(
+  reviewId: string,
+  request: ReviewRequest,
+  minimumScore: number,
+) {
   return writeClient().writeContract({
     address: publicConfig.genlayerContractAddress,
     functionName: "request_review",
@@ -38,6 +42,7 @@ export async function submitGenLayerReview(reviewId: string, request: ReviewRequ
       request.assignee,
       request.criterion,
       request.criterionHash,
+      minimumScore,
       request.evidenceStatement,
       JSON.stringify(request.evidenceLinks),
       request.appealContext,

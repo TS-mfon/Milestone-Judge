@@ -3,11 +3,11 @@
 ## Live testnet deployment
 
 - Base Sepolia escrow:
-  `0x47F846c659B4DF565d2e8b1cd32F610E68d11B9A`
+  `0x24A72bD408973ae15F07Eb5F0DA31A0519efC3db`
 - Base Sepolia USDC:
   `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 - GenLayer StudioNet verifier:
-  `0x4006FA705a70BF9137e7B5d07555b6E547Cae5c5`
+  `0x0C5215C9f4997dfF0Bd614256732899A69952e66`
 - Base owner and settlement executor:
   `0xEd9EDd8586b20524CafA4F568413C504C9B03172`
 - GenLayer review signer:
@@ -15,13 +15,15 @@
 - Production application:
   `https://ma-milestone-verifier.vercel.app`
 - Base deployment transaction:
-  `0x24220d7085bcd98188deb14c38ec8b8c8eec17c204541f73e12e68fad3b5c539`
+  `0xfa217ff42335008c40dd991b6e69b3a919032e788c70105cd2179eb04a91bc03`
 - GenLayer deployment transaction:
-  `0x8bda0c6180df0afe2e59aa7b5d1e374c4c88b79c6185576f96a4e30e307a15fb`
-- GenLayer signer rotation transaction:
-  `0x7a6ea4d882c9b724ca96c6cf35009761abb19bda7c55d128be58e1ba605800c9`
+  `0x935bc006af4fb015032cc9226aa274fd06589a46aef288d31c5077ccc0ac09f4`
 - Base index start block:
-  `44728854`
+  `44765124`
+
+This deployment adds contract-fetched evidence, threshold-aware comparative
+consensus, immutable approval proposals, creator-selected settlement policy,
+and browser-independent stateless settlement automation.
 
 ## 1. Separate service signers
 
@@ -102,8 +104,8 @@ fees.
 
 Import the GitHub repository into Vercel with the repository root as the project
 root and add the variables from `.env.example`. Keep only
-`GENLAYER_PLATFORM_PRIVATE_KEY` and `BASE_EXECUTOR_PRIVATE_KEY` server-only. Do
-not provision a database, queue, cron, or webhook.
+`GENLAYER_PLATFORM_PRIVATE_KEY`, `BASE_EXECUTOR_PRIVATE_KEY`, and `CRON_SECRET`
+server-only. Do not provision a database, queue, or webhook.
 
 After deployment, verify:
 
@@ -112,7 +114,23 @@ curl -sS https://YOUR_DOMAIN/api/health
 curl -sS https://YOUR_DOMAIN/api/events
 ```
 
+Vercel invokes `/api/automation/settle` every minute and sends `CRON_SECRET` as
+a bearer token. The route derives pending work only from Base and GenLayer
+state, so it does not require a browser tab or persistent off-chain state. Test
+it manually with:
+
+```bash
+curl -sS -H "Authorization: Bearer $CRON_SECRET" \
+  https://YOUR_DOMAIN/api/automation/settle
+```
+
+The health endpoint reports `settlementAutomationConfigured: true` when the
+secret is available.
+
 ## 6. Automatic 10 USDC production payout
+
+The records below are historical proof from the preceding escrow deployment and
+remain verifiable on Base Sepolia.
 
 The Work Proof milestone for assigned wallet
 `0x5905c9Dea6Ae52AA0947D8F7F218263889eDfC4` was automatically settled on

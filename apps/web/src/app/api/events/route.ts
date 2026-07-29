@@ -13,6 +13,15 @@ export async function GET(request: Request) {
       roleValue === "assigned" || roleValue === "created" || roleValue === "related"
         ? roleValue
         : undefined;
+    const limit = Math.max(
+      1,
+      Math.min(100, Number(params.get("limit") || 50)),
+    );
+    const beforeBlockValue = params.get("beforeBlock");
+    const beforeBlock =
+      beforeBlockValue && /^\d+$/.test(beforeBlockValue)
+        ? BigInt(beforeBlockValue)
+        : undefined;
     if (!wallet) {
       return NextResponse.json({ events: [] });
     }
@@ -22,8 +31,13 @@ export async function GET(request: Request) {
         { status: 400 },
       );
     }
+    const events = await readMilestoneEvents({ wallet, role, limit, beforeBlock });
     return NextResponse.json({
-      events: await readMilestoneEvents({ wallet, role }),
+      events,
+      nextBeforeBlock:
+        events.length === limit
+          ? events[events.length - 1].createdBlockNumber
+          : undefined,
     });
   } catch (error) {
     return NextResponse.json(

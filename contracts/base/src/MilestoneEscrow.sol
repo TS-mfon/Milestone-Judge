@@ -22,6 +22,7 @@ contract MilestoneEscrow {
         EventStatus status;
         uint32 milestoneCount;
         uint32 paidCount;
+        uint32 challengePeriod;
         uint256 totalAmount;
         uint256 paidAmount;
         string title;
@@ -83,6 +84,7 @@ contract MilestoneEscrow {
         address indexed creator,
         address indexed assignee,
         uint64 deadline,
+        uint32 challengePeriod,
         string title,
         string termsCid
     );
@@ -165,7 +167,13 @@ contract MilestoneEscrow {
         platformExecutor = initialExecutor;
     }
 
-    function createEvent(address assignee, string calldata title, string calldata termsCid, uint64 deadline)
+    function createEvent(
+        address assignee,
+        string calldata title,
+        string calldata termsCid,
+        uint64 deadline,
+        uint32 challengePeriod
+    )
         external
         whenNotPaused
         returns (uint256 eventId)
@@ -173,6 +181,9 @@ contract MilestoneEscrow {
         if (assignee == address(0)) revert InvalidAddress();
         if (bytes(title).length == 0 || bytes(title).length > 120) revert InvalidInput();
         if (deadline <= block.timestamp) revert InvalidDeadline();
+        if (challengePeriod > 7 days || block.timestamp + challengePeriod > deadline) {
+            revert InvalidDeadline();
+        }
 
         eventId = nextEventId++;
         events[eventId] = EventRecord({
@@ -182,12 +193,15 @@ contract MilestoneEscrow {
             status: EventStatus.Draft,
             milestoneCount: 0,
             paidCount: 0,
+            challengePeriod: challengePeriod,
             totalAmount: 0,
             paidAmount: 0,
             title: title,
             termsCid: termsCid
         });
-        emit EventCreated(eventId, msg.sender, assignee, deadline, title, termsCid);
+        emit EventCreated(
+            eventId, msg.sender, assignee, deadline, challengePeriod, title, termsCid
+        );
     }
 
     function addMilestones(
@@ -247,7 +261,7 @@ contract MilestoneEscrow {
         if (record.deadline <= block.timestamp) revert DeadlinePassed();
 
         record.status = EventStatus.Active;
-        if (!usdc.transferFrom(msg.sender, address(this), record.totalAmount)) revert TransferFailed();
+        _safeTransferFrom(msg.sender, address(this), record.totalAmount);
         emit EventActivated(eventId, record.totalAmount);
     }
 
@@ -256,19 +270,21 @@ contract MilestoneEscrow {
         uint256 milestoneId,
         bytes32 reviewId,
         bytes32 resultHash,
-        uint8 score,
-        uint64 challengeDeadline
+        uint8 score
     ) external onlyExecutor whenNotPaused {
         EventRecord storage record = events[eventId];
         Milestone storage milestone = milestones[eventId][milestoneId];
         if (record.status != EventStatus.Active) revert InvalidState();
-        if (milestoneId >= record.milestoneCount || milestone.paid || milestone.appealOpen) {
+        if (
+            milestoneId >= record.milestoneCount || milestone.paid
+                || milestone.appealOpen || milestone.approvalProposed
+        ) {
             revert InvalidState();
         }
+        uint64 challengeDeadline = uint64(block.timestamp + record.challengePeriod);
         if (
             reviewId == bytes32(0) || resultHash == bytes32(0)
-                || score > 100 || challengeDeadline <= block.timestamp
-                || challengeDeadline > record.deadline
+                || score > 100 || challengeDeadline > record.deadline
         ) revert InvalidInput();
         if (score < milestone.minimumScore) revert ScoreBelowMinimum();
 
@@ -299,7 +315,8 @@ contract MilestoneEscrow {
         if (msg.sender != record.creator) revert Unauthorized();
         if (
             record.status != EventStatus.Active || !milestone.approvalProposed
-                || milestone.appealOpen || block.timestamp >= milestone.challengeDeadline
+                || record.challengePeriod == 0 || milestone.appealOpen
+                || block.timestamp >= milestone.challengeDeadline
         ) revert InvalidState();
         if (reasonHash == bytes32(0)) revert InvalidInput();
 
@@ -307,7 +324,7 @@ contract MilestoneEscrow {
         milestone.appealOpen = true;
         appeals[eventId][milestoneId] =
             Appeal({ challenger: msg.sender, bond: bond, reasonHash: reasonHash });
-        if (!usdc.transferFrom(msg.sender, address(this), bond)) revert TransferFailed();
+        _safeTransferFrom(msg.sender, address(this), bond);
         emit AppealOpened(eventId, milestoneId, msg.sender, bond, reasonHash);
     }
 
@@ -335,13 +352,13 @@ contract MilestoneEscrow {
             milestone.reviewId = finalReviewId;
             milestone.resultHash = finalResultHash;
             milestone.challengeDeadline = uint64(block.timestamp);
-            if (!usdc.transfer(events[eventId].assignee, appeal.bond)) revert TransferFailed();
+            _safeTransfer(events[eventId].assignee, appeal.bond);
         } else {
             milestone.approvalProposed = false;
             milestone.challengeDeadline = 0;
             milestone.reviewId = finalReviewId;
             milestone.resultHash = finalResultHash;
-            if (!usdc.transfer(appeal.challenger, appeal.bond)) revert TransferFailed();
+            _safeTransfer(appeal.challenger, appeal.bond);
         }
         emit AppealResolved(
             eventId, milestoneId, approvalUpheld, finalScore, finalReviewId, finalResultHash
@@ -375,7 +392,7 @@ contract MilestoneEscrow {
         record.paidAmount += milestone.amount;
         if (record.paidCount == record.milestoneCount) record.status = EventStatus.Completed;
 
-        if (!usdc.transfer(record.assignee, milestone.amount)) revert TransferFailed();
+        _safeTransfer(record.assignee, milestone.amount);
         emit MilestoneReleased(
             eventId,
             milestoneId,
@@ -394,7 +411,7 @@ contract MilestoneEscrow {
 
         uint256 refundAmount = record.totalAmount - record.paidAmount;
         record.status = EventStatus.Refunded;
-        if (refundAmount > 0 && !usdc.transfer(record.creator, refundAmount)) revert TransferFailed();
+        if (refundAmount > 0) _safeTransfer(record.creator, refundAmount);
         emit EventRefunded(eventId, record.creator, refundAmount);
     }
 
@@ -460,5 +477,23 @@ contract MilestoneEscrow {
         appealBondBps = bondBps;
         minimumAppealBond = minimumBond;
         maximumAppealBond = maximumBond;
+    }
+
+    function _safeTransfer(address to, uint256 amount) private {
+        (bool success, bytes memory data) = address(usdc).call(
+            abi.encodeCall(IERC20.transfer, (to, amount))
+        );
+        if (!success || (data.length != 0 && !abi.decode(data, (bool)))) {
+            revert TransferFailed();
+        }
+    }
+
+    function _safeTransferFrom(address from, address to, uint256 amount) private {
+        (bool success, bytes memory data) = address(usdc).call(
+            abi.encodeCall(IERC20.transferFrom, (from, to, amount))
+        );
+        if (!success || (data.length != 0 && !abi.decode(data, (bool)))) {
+            revert TransferFailed();
+        }
     }
 }

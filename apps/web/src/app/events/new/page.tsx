@@ -32,6 +32,7 @@ export default function NewEventPage() {
   const [assignee, setAssignee] = useState("");
   const [deadline, setDeadline] = useState("");
   const [termsCid, setTermsCid] = useState("");
+  const [challengePeriod, setChallengePeriod] = useState("0");
   const [milestones, setMilestones] = useState<DraftMilestone[]>([initialMilestone()]);
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
@@ -84,7 +85,13 @@ export default function NewEventPage() {
         address: publicConfig.escrowAddress,
         abi: escrowAbi,
         functionName: "createEvent",
-        args: [assignee, title.trim(), termsCid.trim(), BigInt(deadlineSeconds)],
+        args: [
+          assignee,
+          title.trim(),
+          termsCid.trim(),
+          BigInt(deadlineSeconds),
+          Number(challengePeriod),
+        ],
       });
       const createReceipt = await publicClient.waitForTransactionReceipt({ hash: createHash });
       let eventId = 0;
@@ -159,7 +166,15 @@ export default function NewEventPage() {
               <label>Event title<input value={title} onChange={(event) => setTitle(event.target.value)} required maxLength={120} placeholder="Production launch delivery" /></label>
               <label>Assigned wallet<input value={assignee} onChange={(event) => setAssignee(event.target.value)} required placeholder="0x..." /></label>
               <label>Completion deadline<input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} required /></label>
-              <label>Terms document URL or IPFS CID<input value={termsCid} onChange={(event) => setTermsCid(event.target.value)} placeholder="https://... or ipfs://..." /></label>
+              <label>Terms document URL<input value={termsCid} onChange={(event) => setTermsCid(event.target.value)} placeholder="Suggested: https://write.as/your-terms" /></label>
+              <label>Settlement policy
+                <select value={challengePeriod} onChange={(event) => setChallengePeriod(event.target.value)}>
+                  <option value="0">Instant payout, no appeal</option>
+                  <option value="3600">1 hour challenge window</option>
+                  <option value="86400">24 hour challenge window</option>
+                  <option value="259200">3 day challenge window</option>
+                </select>
+              </label>
             </div>
           </div>
         </section>

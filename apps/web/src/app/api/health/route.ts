@@ -14,6 +14,7 @@ export async function GET() {
     oneShotAuthentication: "public-hosted",
     genlayerSignerConfigured: Boolean(process.env.GENLAYER_PLATFORM_PRIVATE_KEY),
     baseExecutorConfigured: Boolean(process.env.BASE_EXECUTOR_PRIVATE_KEY),
+    settlementAutomationConfigured: Boolean(process.env.CRON_SECRET),
     timestamp: new Date().toISOString(),
   });
 }

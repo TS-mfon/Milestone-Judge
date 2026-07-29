@@ -89,6 +89,11 @@ describe("validateOnchainReview", () => {
   it("accepts an initial review for an active untouched milestone", async () => {
     mockBaseState({});
 
-    await expect(validateOnchainReview(request)).resolves.toBeUndefined();
+    await expect(validateOnchainReview(request)).resolves.toEqual(
+      expect.objectContaining({
+        event: expect.objectContaining({ assignee }),
+        milestone: expect.objectContaining({ criteriaHash: request.criterionHash }),
+      }),
+    );
   });
 });

@@ -20,8 +20,6 @@ export type SettlementAction =
   | "payout"
   | "appeal-resolution";
 
-const automaticSettlementDelay = 30;
-
 function sleep(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -95,18 +93,12 @@ export async function settleReview(
       | undefined;
     let currentMilestone = milestone;
     if (!currentMilestone.approvalProposed) {
-      const challengeDeadline =
-        Math.floor(Date.now() / 1000) + automaticSettlementDelay;
-      if (BigInt(challengeDeadline) > event.deadline) {
-        throw new Error("Event deadline is too close for automatic payout");
-      }
       proposal = await relayApprovalProposal(
         reviewId,
         eventId,
         milestoneId,
         resultHash,
         review.result.score,
-        challengeDeadline,
       );
       await waitForRelay(proposal.taskId);
       currentMilestone = await client.readContract({
@@ -124,9 +116,17 @@ export async function settleReview(
       throw new Error("Milestone did not enter an eligible payout state");
     }
 
-    const waitMilliseconds =
-      Number(currentMilestone.challengeDeadline) * 1000 - Date.now() + 3_000;
-    if (waitMilliseconds > 0) await sleep(waitMilliseconds);
+    if (
+      BigInt(Math.floor(Date.now() / 1000)) <
+      currentMilestone.challengeDeadline
+    ) {
+      return {
+        action,
+        status: "challenge-window",
+        proposal,
+        challengeDeadline: currentMilestone.challengeDeadline.toString(),
+      };
+    }
 
     const payout = await relayMilestonePayout(
       reviewId,
@@ -156,10 +156,6 @@ export async function settleReview(
     if (milestone.approvalProposed || milestone.appealOpen) {
       throw new Error("A Base approval or appeal is already active");
     }
-    const challengeDeadline = Math.floor(Date.now() / 1000) + 24 * 60 * 60;
-    if (BigInt(challengeDeadline) > event.deadline) {
-      throw new Error("Event deadline is too close for the challenge window");
-    }
     return {
       action,
       resultHash,
@@ -169,7 +165,6 @@ export async function settleReview(
         milestoneId,
         resultHash,
         review.result.score,
-        challengeDeadline,
       )),
     };
   }

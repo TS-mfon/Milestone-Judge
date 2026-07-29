@@ -114,6 +114,7 @@ export default function EventDetailPage() {
         <div><small>Assignee</small><strong>{shortAddress(event.assignee)}</strong></div>
         <div><small>Creator</small><strong>{shortAddress(event.creator)}</strong></div>
         <div><small>Deadline</small><strong>{formatDate(event.deadline)}</strong></div>
+        <div><small>Settlement</small><strong>{event.challengePeriodSeconds === 0 ? "Instant" : `${event.challengePeriodSeconds / 3600}h challenge`}</strong></div>
         {event.termsCid && <a href={event.termsCid.startsWith("http") ? event.termsCid : undefined} target="_blank" rel="noreferrer"><small>Terms</small><strong>Document <ExternalLink size={14} /></strong></a>}
       </section>
       {error && <div className="form-error">{error}</div>}

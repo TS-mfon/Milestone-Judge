@@ -35,3 +35,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uvx --from genvm-linter genvm-lint check contracts/genlayer/milestone_verifier.py
+      - run: uvx --from genlayer-test pytest -q contracts/genlayer/tests/direct

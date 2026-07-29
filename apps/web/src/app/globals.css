@@ -159,9 +159,9 @@ h1, h2, h3 { letter-spacing: 0; }
 .form-section-body h2 { font-size: 18px; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 label { display: grid; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
-input, textarea { width: 100%; color: var(--on-surface); background: var(--surface-low); border: 1px solid var(--outline); border-radius: 4px; padding: 11px 12px; outline: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
+input, textarea, select { width: 100%; color: var(--on-surface); background: var(--surface-low); border: 1px solid var(--outline); border-radius: 4px; padding: 11px 12px; outline: 0; text-transform: none; letter-spacing: 0; font-weight: 400; }
 textarea { min-height: 110px; resize: vertical; line-height: 1.55; }
-input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(217,255,0,.08); }
+input:focus, textarea:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(217,255,0,.08); }
 .builder-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .builder-heading p { color: #88888b; font-size: 13px; }
 .milestone-builder { display: grid; gap: 10px; margin-top: 14px; }
@@ -181,7 +181,7 @@ input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3p
 .criterion-panel > div:last-child { border-right: 0; }
 
 /* Event detail */
-.event-facts { display: grid; grid-template-columns: repeat(5,1fr); border: 1px solid var(--outline-variant); margin-bottom: 24px; }
+.event-facts { display: grid; grid-template-columns: repeat(6,1fr); border: 1px solid var(--outline-variant); margin-bottom: 24px; }
 .event-facts > div, .event-facts > a { min-height: 78px; padding: 15px; display: grid; align-content: center; gap: 6px; border-right: 1px solid var(--outline-variant); }
 .event-facts > :last-child { border-right: 0; }
 .event-facts small { color: #858589; text-transform: uppercase; letter-spacing: .1em; font-weight: 700; }

@@ -3,6 +3,7 @@ import {
   formatUnits,
   http,
   parseAbiItem,
+  type Address,
   type Hex,
 } from "viem";
 import { isContractConfigured, publicConfig } from "./config";
@@ -11,7 +12,7 @@ import { readLatestReview } from "./genlayer";
 import type { EventStatus, MilestoneEvent, ReviewStatus } from "./types";
 
 const createdEvent = parseAbiItem(
-  "event EventCreated(uint256 indexed eventId, address indexed creator, address indexed assignee, uint64 deadline, string title, string termsCid)",
+  "event EventCreated(uint256 indexed eventId, address indexed creator, address indexed assignee, uint64 deadline, uint32 challengePeriod, string title, string termsCid)",
 );
 const milestoneReleased = parseAbiItem(
   "event MilestoneReleased(uint256 indexed eventId, uint256 indexed milestoneId, bytes32 indexed reviewId, bytes32 resultHash, address assignee, uint256 amount)",
@@ -23,6 +24,8 @@ const zeroHash = `0x${"0".repeat(64)}`;
 export async function readMilestoneEvents(options?: {
   wallet?: string;
   role?: "assigned" | "created" | "related";
+  limit?: number;
+  beforeBlock?: bigint;
 }): Promise<MilestoneEvent[]> {
   if (!isContractConfigured) throw new Error("Base Sepolia escrow is not configured");
   const client = createPublicClient({
@@ -30,21 +33,52 @@ export async function readMilestoneEvents(options?: {
     transport: http(publicConfig.baseRpcUrl),
   });
   const fromBlock = BigInt(process.env.BASE_INDEX_START_BLOCK || 0);
-  const logs = [];
   const latestBlock = await client.getBlockNumber();
-  let toBlock = latestBlock;
-  while (toBlock >= fromBlock && logs.length < 100) {
+  const limit = Math.max(1, Math.min(100, options?.limit || 50));
+  const wallet = options?.wallet as Address | undefined;
+  const logs: Awaited<ReturnType<typeof client.getLogs<typeof createdEvent>>> = [];
+  let toBlock =
+    options?.beforeBlock && options.beforeBlock < latestBlock
+      ? options.beforeBlock
+      : latestBlock;
+  while (toBlock >= fromBlock && logs.length < limit) {
     const chunkFrom = toBlock - fromBlock > 1_999n ? toBlock - 1_999n : fromBlock;
-    const chunk = await client.getLogs({
+    const baseQuery = {
       address: publicConfig.escrowAddress,
       event: createdEvent,
       fromBlock: chunkFrom,
       toBlock,
-    });
-    logs.push(...[...chunk].reverse());
+    } as const;
+    if (wallet && options?.role === "assigned") {
+      logs.push(...await client.getLogs({ ...baseQuery, args: { assignee: wallet } }));
+    } else if (wallet && options?.role === "created") {
+      logs.push(...await client.getLogs({ ...baseQuery, args: { creator: wallet } }));
+    } else if (wallet) {
+      const [created, assigned] = await Promise.all([
+        client.getLogs({ ...baseQuery, args: { creator: wallet } }),
+        client.getLogs({ ...baseQuery, args: { assignee: wallet } }),
+      ]);
+      const unique = new Map(
+        [...created, ...assigned].map((log) => [
+          `${log.transactionHash}:${log.logIndex}`,
+          log,
+        ]),
+      );
+      logs.push(...unique.values());
+    } else {
+      logs.push(...await client.getLogs(baseQuery));
+    }
     if (chunkFrom === fromBlock) break;
     toBlock = chunkFrom - 1n;
   }
+  logs.sort((left, right) =>
+    left.blockNumber === right.blockNumber
+      ? Number((right.logIndex || 0) - (left.logIndex || 0))
+      : left.blockNumber > right.blockNumber
+        ? -1
+        : 1,
+  );
+  const selectedLogs = logs.slice(0, limit);
 
   const releaseLogs: Array<{
     args: { eventId?: bigint; milestoneId?: bigint };
@@ -81,37 +115,73 @@ export async function readMilestoneEvents(options?: {
   );
   const blockTimestamps = new Map<bigint, string>();
 
-  const output: MilestoneEvent[] = [];
-  const now = Math.floor(Date.now() / 1000);
-  for (const log of logs.slice(0, 100)) {
-    if (log.args.eventId === undefined) continue;
-    const eventId = log.args.eventId;
-    const record = await client.readContract({
+  const eventRecords = await client.multicall({
+    allowFailure: false,
+    contracts: selectedLogs.map((log) => ({
       address: publicConfig.escrowAddress,
       abi: escrowAbi,
-      functionName: "getEvent",
-      args: [eventId],
-    });
-    const milestones = [];
-    for (let milestoneId = 0; milestoneId < record.milestoneCount; milestoneId += 1) {
-      const milestone = await client.readContract({
+      functionName: "getEvent" as const,
+      args: [log.args.eventId!],
+    })),
+  });
+  const milestoneCalls = eventRecords.flatMap((record, eventIndex) =>
+    Array.from({ length: Number(record.milestoneCount) }, (_, milestoneId) => ({
+      eventIndex,
+      milestoneId,
+      call: {
         address: publicConfig.escrowAddress,
         abi: escrowAbi,
-        functionName: "getMilestone",
-        args: [eventId, BigInt(milestoneId)],
-      });
+        functionName: "getMilestone" as const,
+        args: [selectedLogs[eventIndex].args.eventId!, BigInt(milestoneId)],
+      },
+    })),
+  );
+  const milestoneRecords = await client.multicall({
+    allowFailure: false,
+    contracts: milestoneCalls.map((item) => item.call),
+  });
+  const milestonesByEvent = new Map<number, Array<{
+    id: number;
+    record: (typeof milestoneRecords)[number];
+  }>>();
+  milestoneRecords.forEach((record, index) => {
+    const call = milestoneCalls[index];
+    const current = milestonesByEvent.get(call.eventIndex) || [];
+    current.push({ id: call.milestoneId, record });
+    milestonesByEvent.set(call.eventIndex, current);
+  });
+
+  const relevantBlocks = new Set<bigint>();
+  for (const log of selectedLogs) relevantBlocks.add(log.blockNumber);
+  for (const release of releaseLogs) {
+    if (release.blockNumber !== null) relevantBlocks.add(release.blockNumber);
+  }
+  await Promise.all(
+    [...relevantBlocks].map(async (blockNumber) => {
+      const block = await client.getBlock({ blockNumber });
+      blockTimestamps.set(
+        blockNumber,
+        new Date(Number(block.timestamp) * 1000).toISOString(),
+      );
+    }),
+  );
+
+  const output: MilestoneEvent[] = [];
+  const now = Math.floor(Date.now() / 1000);
+  for (let eventIndex = 0; eventIndex < selectedLogs.length; eventIndex += 1) {
+    const log = selectedLogs[eventIndex];
+    if (log.args.eventId === undefined) continue;
+    const eventId = log.args.eventId;
+    const record = eventRecords[eventIndex];
+    const milestones = [];
+    for (const item of milestonesByEvent.get(eventIndex) || []) {
+      const milestoneId = item.id;
+      const milestone = item.record;
       const release = releaseByMilestone.get(`${eventId}:${milestoneId}`);
-      let paidAt: string | undefined;
-      if (release?.blockNumber !== null && release?.blockNumber !== undefined) {
-        paidAt = blockTimestamps.get(release.blockNumber);
-        if (!paidAt) {
-          const releaseBlock = await client.getBlock({
-            blockNumber: release.blockNumber,
-          });
-          paidAt = new Date(Number(releaseBlock.timestamp) * 1000).toISOString();
-          blockTimestamps.set(release.blockNumber, paidAt);
-        }
-      }
+      const paidAt =
+        release?.blockNumber !== null && release?.blockNumber !== undefined
+          ? blockTimestamps.get(release.blockNumber)
+          : undefined;
       const latestReview = await readLatestReview(eventId, milestoneId).catch(() => undefined);
       let reviewStatus: ReviewStatus = "not_submitted";
       if (milestone.paid) reviewStatus = "paid";
@@ -134,6 +204,7 @@ export async function readMilestoneEvents(options?: {
         reviewId:
           latestReview?.review_id ||
           (milestone.reviewId === zeroHash ? undefined : milestone.reviewId),
+        reviewKind: latestReview?.review_kind,
         decision: latestReview?.result.decision,
         score: latestReview?.result.score,
         review: latestReview?.result.review,
@@ -159,9 +230,6 @@ export async function readMilestoneEvents(options?: {
         paymentTransactionHash: release?.transactionHash,
       });
     }
-    const block = log.blockNumber
-      ? await client.getBlock({ blockNumber: log.blockNumber })
-      : undefined;
     const normalizedWallet = options?.wallet?.toLowerCase();
     const include =
       !normalizedWallet ||
@@ -182,9 +250,9 @@ export async function readMilestoneEvents(options?: {
       deadline: new Date(Number(record.deadline) * 1000).toISOString(),
       status: eventStatuses[record.status] || "draft",
       termsCid: record.termsCid,
-      createdAt: block
-        ? new Date(Number(block.timestamp) * 1000).toISOString()
-        : new Date().toISOString(),
+      challengePeriodSeconds: Number(record.challengePeriod),
+      createdAt: blockTimestamps.get(log.blockNumber) || new Date().toISOString(),
+      createdBlockNumber: log.blockNumber.toString(),
       refundReady: record.status === 2 && now > Number(record.deadline),
       milestones,
     });

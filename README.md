@@ -20,9 +20,9 @@ Production application:
 
 | Component | Network | Address or endpoint |
 | --- | --- | --- |
-| Milestone escrow | Base Sepolia, chain ID `84532` | `0x47F846c659B4DF565d2e8b1cd32F610E68d11B9A` |
+| Milestone escrow | Base Sepolia, chain ID `84532` | `0x24A72bD408973ae15F07Eb5F0DA31A0519efC3db` |
 | USDC | Base Sepolia | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| Evidence verifier | GenLayer StudioNet | `0x4006FA705a70BF9137e7B5d07555b6E547Cae5c5` |
+| Evidence verifier | GenLayer StudioNet | `0x0C5215C9f4997dfF0Bd614256732899A69952e66` |
 | Hosted relayer | 1Shot | `https://relayer.1shotapi.dev/relayers` |
 | Web application | Vercel | `https://ma-milestone-verifier.vercel.app` |
 
@@ -34,26 +34,31 @@ in [`docs/deployment.md`](docs/deployment.md).
 - Creates an event for one assigned wallet.
 - Stores event title, deadline, terms document reference, creator, and assignee
   on Base Sepolia.
+- Lets the creator choose instant settlement or a 1-hour, 24-hour, or 3-day
+  challenge period for the complete event.
 - Adds up to 50 immutable natural-language milestones before funding.
 - Assigns an exact USDC amount and minimum GenLayer score from 1 to 100 to each
   milestone.
 - Locks the aggregate USDC budget when the creator activates the event.
 - Shows assignees only events delegated to their connected wallet.
 - Shows creators only events created by their connected wallet.
-- Accepts public HTTPS and IPFS evidence.
+- Accepts public HTTPS and IPFS evidence and retrieves each source from the
+  GenLayer contract before judgment.
 - Lets the assignee authorize evidence without sending a blockchain
   transaction or switching wallet networks.
 - Uses a server-only GenLayer signer to submit reviews.
 - Returns a decision, score, detailed review, strengths, improvements,
   suggestions, citations, and evidence gaps.
 - Uses hosted 1Shot to relay exact executor calls on Base Sepolia.
-- Automatically starts Base settlement when an approved score meets the funded
-  minimum.
-- Automatically releases the exact milestone amount after the escrow's short
-  required settlement interval.
+- Runs a stateless Vercel settlement cron every minute, independent of browser
+  tabs or connected wallets.
+- Automatically proposes and releases the exact milestone amount after an
+  approved verdict meets the funded minimum and any selected challenge period
+  has elapsed.
 - Releases each milestone once and only to the original assignee.
 - Refunds only the unpaid event balance after the event deadline.
-- Uses no application database, queue, cron job, or webhook persistence.
+- Uses no application database, queue, or webhook persistence; the settlement
+  cron reconstructs pending work from on-chain state on every run.
 
 ## Architecture
 
@@ -64,6 +69,7 @@ flowchart LR
   Web -->|GenLayer platform signer| GenLayer[GenLayer verifier]
   GenLayer -->|comparative consensus verdict| Web
   Web -->|Base executor authorization| OneShot[Hosted 1Shot relayer]
+  Cron[Vercel cron] -->|scan on-chain state| Web
   OneShot -->|proposal, appeal resolution, payout| Base
   Base -->|USDC| Assignee
 ```
@@ -77,7 +83,7 @@ flowchart LR
 - milestone amounts and minimum scores;
 - locked, paid, and refundable USDC;
 - approval proposals and accepted scores;
-- challenge deadlines and appeals;
+- creator-selected challenge periods, deadlines, and appeals;
 - single-use payouts;
 - owner, pause, and executor rotation.
 
@@ -88,7 +94,11 @@ flowchart LR
 - accepts review transactions only from the configured platform signer;
 - treats submitted evidence as untrusted input;
 - asks validators to inspect material public evidence;
+- retrieves and bounds every submitted public evidence source before prompting;
+- rejects approvals without at least one successfully retrieved cited source;
 - uses `gl.eq_principle.prompt_comparative`;
+- requires validators to agree on which side of the funded threshold the score
+  falls;
 - normalizes the verdict before storing it on-chain;
 - indexes the latest review for each Base event and milestone.
 
@@ -103,6 +113,7 @@ The application is a stateless coordinator. It:
 - submits GenLayer transactions with the server-only platform key;
 - builds exact-call 1Shot delegations;
 - never chooses the payout recipient or amount.
+- scans on-chain state through an authenticated Vercel cron without a database.
 
 Vercel is not a canonical datastore. Restarting or redeploying the application
 does not remove event, review, or escrow state.
@@ -113,6 +124,7 @@ does not remove event, review, or escrow state.
 
 - Creates the event and milestones.
 - Selects each score threshold.
+- Selects instant settlement or a meaningful challenge period for the event.
 - Locks the full USDC budget.
 - May challenge a proposed approval during the challenge window.
 - May claim the unpaid balance after the event deadline.
@@ -153,12 +165,14 @@ does not remove event, review, or escrow state.
 4. The assignee submits evidence and signs EIP-712 typed data.
 5. The API verifies the signature and funded milestone state.
 6. The GenLayer-only platform signer calls GenLayer `request_review`.
-7. GenLayer validators produce and compare independent verdicts.
-8. If the decision is approved and the score meets the threshold, the Vercel
-   coordinator automatically asks hosted 1Shot to record the approval.
-9. After the immutable escrow's short required timestamp interval, the same
-   server request automatically asks 1Shot to call `releaseMilestone`.
-10. The escrow transfers the exact funded amount to the assignee.
+7. GenLayer retrieves the public sources, then validators produce and compare
+   independent verdicts, including exact agreement on threshold crossing.
+8. The authenticated Vercel cron scans Base and GenLayer every minute and asks
+   hosted 1Shot to record eligible approvals.
+9. For instant events it releases immediately. For challenged events it waits
+   until the creator-selected period expires and no appeal is open.
+10. The escrow transfers the exact funded amount to the assignee. This process
+    does not depend on the verdict page remaining open.
 
 Rejected, inconclusive, or below-threshold results do not create a payout
 transaction. The assignee may submit materially improved evidence before expiry.
@@ -223,13 +237,16 @@ For those writes the frontend:
   "criterion_met": true,
   "measurement_valid": true,
   "material_exception": false,
+  "threshold_met": true,
+  "minimum_score": 80,
   "review": "Detailed evidence-grounded assessment",
   "explanation": "Concise decision summary",
   "strengths": ["Verified strength"],
   "improvements": ["Specific deficiency"],
   "suggestions": ["Actionable next step"],
   "citations": ["https://public-evidence.example"],
-  "evidence_gaps": ["Missing corroboration"]
+  "evidence_gaps": ["Missing corroboration"],
+  "retrieved_sources": ["https://public-evidence.example"]
 }
 ```
 
@@ -318,6 +335,8 @@ RPC endpoints must be reachable.
 | `BASE_EXECUTOR_PRIVATE_KEY` | Server secret | Hosted 1Shot Base executor only |
 | `GENLAYER_NETWORK` | Server | `studionet` |
 | `ONESHOT_API_URL` | Server | Hosted relayer URL |
+| `CRON_SECRET` | Server secret | Authenticates Vercel settlement cron calls |
+| `AUTOMATION_MAX_ACTIONS` | Server | Maximum settlement actions per cron run |
 
 Never expose either private key through a `NEXT_PUBLIC_` variable, commit it to
 Git, or place it in preview deployments.
@@ -338,6 +357,7 @@ npm run contracts:build
 npm run contracts:test
 npm run contracts:lint
 npm run test:genlayer
+npm run test:genlayer:integration
 npm run smoke:live -- --settle
 ```
 
@@ -353,9 +373,12 @@ Foundry tests cover:
 - appeal score enforcement;
 - unpaid balance refunds.
 
-GenLayer direct tests cover platform-only review submission and normalized
-verdict storage. Frontend tests cover request validation and Base Sepolia
-switch/add behavior, including the reported unrecognized-chain error.
+GenLayer direct tests cover platform-only review submission, web retrieval,
+citation checks, malformed results, duplicate IDs, signer rotation, threshold
+behavior, and normalized verdict storage. Frontend tests cover request
+validation, Base Sepolia switching, and browser-independent settlement
+automation. Foundry invariants check solvency, exact payout accounting, and
+recipient balances over randomized proposal and release sequences.
 
 ## Deployment
 

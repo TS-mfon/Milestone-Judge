@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or expired wallet signature" }, { status: 401 });
   }
   try {
-    await validateOnchainReview(review);
+    const { milestone } = await validateOnchainReview(review);
     const digest = keccak256(
       stringToHex(
         JSON.stringify({
@@ -48,7 +48,11 @@ export async function POST(request: Request) {
     if (existing) {
       return NextResponse.json({ id: reviewId, status: "finalized", review: existing });
     }
-    const transactionHash = await submitGenLayerReview(reviewId, review);
+    const transactionHash = await submitGenLayerReview(
+      reviewId,
+      review,
+      Number(milestone.minimumScore),
+    );
     return NextResponse.json(
       { id: reviewId, status: "submitted", transactionHash },
       { status: 202 },

@@ -4,7 +4,7 @@ import { escrowAbi } from "./contracts";
 import type { ReviewRequest } from "./types";
 
 export async function validateOnchainReview(request: ReviewRequest) {
-  if (!isContractConfigured) return;
+  if (!isContractConfigured) throw new Error("Base Sepolia escrow is not configured");
   const client = createPublicClient({
     chain: publicConfig.chain,
     transport: http(publicConfig.baseRpcUrl),
@@ -53,4 +53,5 @@ export async function validateOnchainReview(request: ReviewRequest) {
   ) {
     throw new Error("Not enough time remains to verify and settle this milestone");
   }
+  return { event, milestone };
 }

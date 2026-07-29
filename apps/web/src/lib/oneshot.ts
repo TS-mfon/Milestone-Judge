@@ -248,7 +248,6 @@ export function relayApprovalProposal(
   milestoneId: number,
   resultHash: `0x${string}`,
   score: number,
-  challengeDeadline: number,
 ) {
   return relay(
     "milestone-approval",
@@ -262,7 +261,6 @@ export function relayApprovalProposal(
         keccak256(stringToHex(reviewId)),
         resultHash,
         score,
-        BigInt(challengeDeadline),
       ],
     }),
   );

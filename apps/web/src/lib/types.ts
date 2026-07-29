@@ -23,6 +23,7 @@ export interface Milestone {
   evidenceStatement?: string;
   evidenceLinks?: string[];
   reviewId?: string;
+  reviewKind?: "initial" | "appeal";
   score?: number;
   review?: string;
   explanation?: string;
@@ -49,7 +50,9 @@ export interface MilestoneEvent {
   deadline: string;
   status: EventStatus;
   termsCid: string;
+  challengePeriodSeconds: number;
   createdAt: string;
+  createdBlockNumber?: string;
   refundReady?: boolean;
   milestones: Milestone[];
 }
@@ -91,6 +94,8 @@ export interface StoredReview {
     criterion_met: boolean;
     measurement_valid: boolean;
     material_exception: boolean;
+    threshold_met: boolean;
+    minimum_score: number;
     review: string;
     explanation: string;
     strengths: string[];
@@ -98,5 +103,6 @@ export interface StoredReview {
     suggestions: string[];
     citations: string[];
     evidence_gaps: string[];
+    retrieved_sources: string[];
   };
 }
