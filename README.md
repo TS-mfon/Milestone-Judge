@@ -362,6 +362,13 @@ npm run test:genlayer:integration
 npm run smoke:live -- --settle
 ```
 
+The live smoke accepts `SMOKE_EVENT_ID`, `SMOKE_MILESTONE_ID`,
+`SMOKE_ASSIGNEE_PRIVATE_KEY`, `SMOKE_API_URL`,
+`SMOKE_EVIDENCE_STATEMENT`, and comma-separated `SMOKE_EVIDENCE_LINKS`.
+Without `--settle`, it exits immediately after GenLayer finalization. Trigger
+the `Settlement Keeper` workflow afterward to verify that an eligible payout
+completes independently of the submitting browser or process.
+
 ## Contract Testing
 
 Foundry tests cover:

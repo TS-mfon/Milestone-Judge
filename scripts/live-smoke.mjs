@@ -82,6 +82,23 @@ function required(name) {
   return value;
 }
 
+function evidenceLinks() {
+  const configured = process.env.SMOKE_EVIDENCE_LINKS;
+  if (!configured) {
+    return [
+      "https://raw.githubusercontent.com/TS-mfon/Milestone-Judge/main/docs/deployment.md",
+    ];
+  }
+  const links = configured
+    .split(",")
+    .map((link) => link.trim())
+    .filter(Boolean);
+  if (links.length === 0) {
+    throw new Error("SMOKE_EVIDENCE_LINKS must contain at least one URL");
+  }
+  return links;
+}
+
 async function jsonRequest(url, options) {
   const response = await fetch(url, options);
   const body = await response.json();
@@ -134,10 +151,9 @@ async function main() {
     criterion: milestone.criteria,
     criterionHash: milestone.criteriaHash,
     evidenceStatement:
-      "Circle's public USDC contract registry lists 0x036CbD53842c5426634e7929541eC2318f3dCF7e as the USDC contract on Base Sepolia.",
-    evidenceLinks: [
-      "https://developers.circle.com/stablecoins/usdc-contract-addresses",
-    ],
+      process.env.SMOKE_EVIDENCE_STATEMENT ||
+      "The Milestone Judge deployment document identifies 0x24A72bD408973ae15F07Eb5F0DA31A0519efC3db as the live Base Sepolia escrow.",
+    evidenceLinks: evidenceLinks(),
     appealContext: "",
     nonce: randomUUID(),
     expiresAt: Math.floor(Date.now() / 1000) + 15 * 60,

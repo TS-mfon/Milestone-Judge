@@ -129,7 +129,55 @@ curl -sS -H "Authorization: Bearer $CRON_SECRET" \
 The health endpoint reports `settlementAutomationConfigured: true` when the
 secret is available.
 
-## 6. Automatic 10 USDC production payout
+## 6. Browser-independent instant payout
+
+The current deployment was exercised on July 29, 2026 with Base event `2`,
+milestone `0`, a 0.1 USDC escrow, an instant-settlement policy, and an on-chain
+minimum score of `80`.
+
+The assignee submitted evidence and waited only for GenLayer finalization. The
+client process exited after the review returned `approved` with score `100`;
+it did not call a Base settlement endpoint. GitHub Actions workflow run
+`30424388477` then invoked the protected stateless keeper and completed both
+Base transactions with no browser process running.
+
+- Base event creation:
+  `0x6c673051043cd13bea4e94d7d01d328d0ee94ac5a3b49ada31d56aedb7d97957`
+- Base milestone addition:
+  `0xcdaea66eca47bd692a147b73f10ad5a641c71606a7d872cfe29a953ba345579b`
+- USDC approval:
+  `0x080057def478e46531e0ec9c736f604c1cde3d9e6c43dec34246c30d24e51bfc`
+- Base activation:
+  `0x8745ddf854ed04e46ee7f27392442e123d0ec063c64cd7f2294a7f72c72fa62a`
+- GenLayer review:
+  `review_57a524870d495a5aae11269992509f448fb8506efe60e5023ac239aa3b72fbfc`
+- GenLayer transaction:
+  `0xd9609fad34ef237816a1939386f21ea8caddc9f08c426d2b14fc3c46060e8b94`
+- Comparative consensus decision and score:
+  `approved`, `100`
+- Hosted 1Shot approval task:
+  `0x8cbf0c3d5f8cf6a412b741ede380823ad516ca9fb477d3ca04204cc5279e550b`
+- Base approval transaction:
+  `0xc1d5448019d2ccb60050ebc87d53debdf987ae26bb1f1b86dc75605d1891b28d`
+- Hosted 1Shot payout task:
+  `0xcd11bfe23ed655d5fee01a326b4fdf93b6fd7c0045ff8706b5106e8e2e3d91ac`
+- Confirmed Base payment transaction:
+  `0x7aabdc0bd53c9e390a50bb2dbec74c39b99e88239fad03987e47779b6ec86c42`
+- Amount transferred:
+  `0.1 USDC`
+- Paid at:
+  `July 29, 2026 at 05:12:42 UTC`
+
+The confirmed receipt contains the USDC transfer from escrow to the assignee
+and the escrow's `MilestoneReleased` event. The production History response
+reports the same payment transaction hash.
+
+Event `1` on this deployment also validated evidence gating. Its submitted
+Circle documentation page did not expose the claimed registry row in fetched
+content, so comparative consensus returned `inconclusive` with score `25` and
+the keeper correctly made no settlement transaction.
+
+## 7. Automatic 10 USDC production payout
 
 The records below are historical proof from the preceding escrow deployment and
 remain verifiable on Base Sepolia.
@@ -154,7 +202,7 @@ The receipt contains both the USDC transfer to the funded assignee and the
 escrow's `MilestoneReleased` event. Event `2` is now completed, and the payment
 appears in the connected wallet's History tab.
 
-## 7. Separated-signer production smoke
+## 8. Separated-signer production smoke
 
 The fully separated production path was exercised on July 28, 2026 with Base
 event `3`, milestone `0`, a 0.1 USDC escrow, and an on-chain minimum score of
@@ -187,7 +235,7 @@ submitted the review using only the GenLayer signer
 proposal using the separate executor. A repeated initial review returned HTTP
 `409` because the milestone was already in its challenge window.
 
-## 8. Scored deployment live smoke
+## 9. Scored deployment live smoke
 
 The scored production path was exercised on July 28, 2026 with Base event `1`,
 milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
@@ -212,7 +260,7 @@ milestone `0`, a 1 USDC escrow, and an on-chain minimum score of `80`:
 The milestone remains locked during its challenge window. Once that exact
 deadline passes, the payout action can release the 1 USDC milestone once.
 
-## 9. Previous deployment smoke record
+## 10. Previous deployment smoke record
 
 The previous contract version was exercised with Base event `1`, milestone `0`.
 Those identifiers remain historical and are not part of the scored deployment:
