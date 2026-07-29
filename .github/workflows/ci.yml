@@ -34,5 +34,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      - name: Cache pinned GenVM runner bundle
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz
+          key: genvm-runners-v0.3.0-rc7
+      - name: Install pinned GenVM runner bundle
+        run: |
+          mkdir -p ~/.cache/gltest-direct
+          test -f ~/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz || \
+            curl --fail --location --retry 3 \
+              https://github.com/genlayerlabs/genvm/releases/download/v0.3.0-rc7/genvm-runners-all.tar.xz \
+              --output ~/.cache/gltest-direct/genvm-universal-v0.3.0-rc7.tar.xz
       - run: uvx --from genvm-linter genvm-lint check contracts/genlayer/milestone_verifier.py
       - run: uvx --from genlayer-test pytest -q contracts/genlayer/tests/direct
