@@ -1,5 +1,12 @@
 export const escrowAbi = [
   {
+    type: "function",
+    name: "nextEventId",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
     type: "event",
     name: "EventCreated",
     inputs: [

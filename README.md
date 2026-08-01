@@ -327,6 +327,7 @@ RPC endpoints must be reachable.
 | Variable | Visibility | Description |
 | --- | --- | --- |
 | `NEXT_PUBLIC_BASE_RPC_URL` | Public | Base Sepolia JSON-RPC endpoint |
+| `BASE_RPC_FALLBACK_URL` | Server | Fallback Base Sepolia RPC for automation |
 | `NEXT_PUBLIC_BASE_CHAIN_ID` | Public | Must be `84532` |
 | `NEXT_PUBLIC_ESCROW_ADDRESS` | Public | Deployed `MilestoneEscrow` |
 | `NEXT_PUBLIC_USDC_ADDRESS` | Public | Base Sepolia USDC |
