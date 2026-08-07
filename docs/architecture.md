@@ -22,10 +22,14 @@ on every request and every stateless keeper run.
 
 ## Review lifecycle
 
-1. The assignee signs an EIP-712 review request.
-2. The API validates expiry, signer, event state, assignee, criterion hash, and
-   remaining deadline.
-3. The GenLayer-only platform signer submits `request_review` directly to StudioNet.
+1. The assignee signs an EIP-712 v3 review request scoped to Base Sepolia chain
+   ID `84532` and the deployed escrow.
+2. The API recomputes `keccak256(criterion)`, validates expiry and signer, and
+   requires exact criterion text, recomputed hash, submitted hash, and the funded
+   Base milestone hash to match.
+3. The API replaces client criterion fields with the canonical values read from
+   Base, and the GenLayer-only platform signer submits `request_review` directly
+   to StudioNet.
 4. The client polls the GenLayer transaction and stored review.
 5. Rejected or inconclusive results remain on-chain and may be resubmitted with
    a new attempt.
@@ -42,6 +46,11 @@ on every request and every stateless keeper run.
 
 - The Base executor cannot choose a recipient or amount.
 - Every review ID and result hash is committed to the payout.
+- GenLayer independently recomputes the criterion hash and stores an evidence
+  snapshot commitment over fetched URL, status, retrieval state, and bounded
+  content.
+- Settlement revalidates the exact GenLayer criterion text and both hashes
+  against Base before any 1Shot proposal or payout.
 - Existing approval proposals cannot be overwritten.
 - 1Shot submissions use deterministic task IDs.
 - 1Shot permissions restrict each relayed call to its exact target, value, and
@@ -51,3 +60,5 @@ on every request and every stateless keeper run.
   unavailable.
 - The automation keeps no cursor or queue. Each run derives pending work from
   Base logs, Base storage, and GenLayer review storage.
+- Public review and settlement routes use bounded per-client throttles, while
+  settlement also rejects duplicate operations already in flight.

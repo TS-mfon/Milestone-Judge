@@ -1,5 +1,7 @@
 import json
 
+CRITERION = "Publish the production launch page"
+CRITERION_HASH = "0xdffdd6c47fabb1cc2f3bb8b2c3664debd3d4a0feec52c2cd1261858910fd845a"
 
 APPROVED = json.dumps(
     {
@@ -38,8 +40,8 @@ def test_platform_can_store_approved_review(direct_vm, direct_deploy, direct_ali
         "0",
         "1",
         str(direct_bob),
-        "Publish the production launch page",
-        "0xcriterion",
+        CRITERION,
+        CRITERION_HASH,
         80,
         "The launch page is public.",
         json.dumps(["https://example.com/release"]),
@@ -75,8 +77,8 @@ def test_non_platform_cannot_request_review(direct_vm, direct_deploy, direct_ali
             "0",
             "1",
             str(direct_bob),
-            "Publish the production launch page",
-            "0xcriterion",
+            CRITERION,
+            CRITERION_HASH,
             80,
             "The launch page is public.",
             "[]",
@@ -106,8 +108,8 @@ def test_rejects_fabricated_citation(direct_vm, direct_deploy, direct_alice, dir
             "0",
             "1",
             str(direct_bob),
-            "Publish the production launch page",
-            "0xcriterion",
+            CRITERION,
+            CRITERION_HASH,
             80,
             "The launch page is public.",
             json.dumps(["https://example.com/release"]),
@@ -133,8 +135,8 @@ def test_rejects_duplicate_review_id(direct_vm, direct_deploy, direct_alice, dir
         "0",
         "1",
         str(direct_bob),
-        "Publish the production launch page",
-        "0xcriterion",
+        CRITERION,
+        CRITERION_HASH,
         80,
         "The launch page is public.",
         json.dumps(["https://example.com/release"]),
@@ -165,8 +167,8 @@ def test_owner_can_rotate_platform_wallet(
             "0",
             "1",
             str(direct_bob),
-            "Publish the production launch page",
-            "0xcriterion",
+            CRITERION,
+            CRITERION_HASH,
             80,
             "The launch page is public.",
             json.dumps(["https://example.com/release"]),
@@ -196,8 +198,8 @@ def test_unreachable_evidence_cannot_be_approved(
             "0",
             "1",
             str(direct_bob),
-            "Publish the production launch page",
-            "0xcriterion",
+            CRITERION,
+            CRITERION_HASH,
             80,
             "The launch page is public.",
             json.dumps(["https://example.com/missing"]),
@@ -227,8 +229,8 @@ def test_malformed_verdict_is_rejected(
             "0",
             "1",
             str(direct_bob),
-            "Publish the production launch page",
-            "0xcriterion",
+            CRITERION,
+            CRITERION_HASH,
             80,
             "The launch page is public.",
             json.dumps(["https://example.com/release"]),
@@ -261,8 +263,8 @@ def test_threshold_flag_uses_funded_minimum(
         "0",
         "1",
         str(direct_bob),
-        "Publish the production launch page",
-        "0xcriterion",
+        CRITERION,
+        CRITERION_HASH,
         80,
         "The launch page is public.",
         json.dumps(["https://example.com/release"]),
@@ -271,3 +273,31 @@ def test_threshold_flag_uses_funded_minimum(
     stored = json.loads(contract.get_review("review-below-threshold"))
     assert stored["result"]["threshold_met"] is False
     assert stored["result"]["minimum_score"] == 80
+
+
+def test_rejects_substituted_criterion_hash(
+    direct_vm, direct_deploy, direct_alice, direct_bob
+):
+    direct_vm.sender = direct_alice
+    contract = direct_deploy(
+        "contracts/genlayer/milestone_verifier.py",
+        "0x" + direct_alice.hex(),
+    )
+
+    with direct_vm.expect_revert("Criterion hash does not match criterion text"):
+        contract.request_review(
+            "review-substituted-criterion",
+            "initial",
+            "84532",
+            "0xEscrow",
+            "1",
+            "0",
+            "1",
+            str(direct_bob),
+            CRITERION + " substituted",
+            CRITERION_HASH,
+            80,
+            "The launch page is public.",
+            json.dumps(["https://example.com/release"]),
+            "",
+        )

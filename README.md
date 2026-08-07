@@ -22,7 +22,7 @@ Production application:
 | --- | --- | --- |
 | Milestone escrow | Base Sepolia, chain ID `84532` | `0x24A72bD408973ae15F07Eb5F0DA31A0519efC3db` |
 | USDC | Base Sepolia | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
-| Evidence verifier | GenLayer StudioNet | `0x0C5215C9f4997dfF0Bd614256732899A69952e66` |
+| Evidence verifier | GenLayer StudioNet | `0x411337519d463DEf32Fc8cb304E87DC4c503C178` |
 | Hosted relayer | 1Shot | `https://relayer.1shotapi.dev/relayers` |
 | Web application | Vercel | `https://ma-milestone-verifier.vercel.app` |
 
@@ -187,16 +187,25 @@ The assignee signs typed data containing:
 - event ID;
 - milestone ID;
 - attempt ID;
-- funded criterion hash;
+- recomputed hash of the exact funded criterion text;
 - evidence hash;
 - random nonce;
 - expiry;
-- deployed escrow address in the EIP-712 domain.
+- Base Sepolia chain ID `84532` and the deployed escrow address in the
+  EIP-712 domain.
 
-The EIP-712 domain intentionally does not contain a chain ID. A wallet connected
-to another network can authorize evidence without receiving an
-`Unrecognized chain ID "0x14a34"` error. The platform signer, not the assignee,
-sends the GenLayer transaction.
+The API recomputes `keccak256(criterion)` before signature recovery and requires
+the signed text hash, submitted hash, and funded Base milestone hash to match.
+It then discards the client copy and forwards the canonical Base criterion to
+GenLayer. Evidence authorization is still an off-chain signature; the platform
+signer, not the assignee, sends the GenLayer transaction.
+
+Before any 1Shot proposal or payout, settlement re-reads the funded Base
+criterion and rejects a GenLayer review unless its exact text, stored hash, and
+recomputed hash all match. The GenLayer contract independently recomputes the
+Ethereum Keccak-256 hash and stores a commitment to the bounded evidence content
+retrieved during consensus. Public review and settlement routes are throttled,
+and duplicate in-flight settlement operations are rejected.
 
 Actual Base writes still enforce Base Sepolia before signing:
 

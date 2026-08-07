@@ -85,6 +85,7 @@ export interface StoredReview {
   assignee: string;
   criterion: string;
   criterion_hash: string;
+  evidence_commitment?: string;
   evidence_statement: string;
   evidence_links: string[];
   appeal_context: string;
@@ -104,5 +105,6 @@ export interface StoredReview {
     citations: string[];
     evidence_gaps: string[];
     retrieved_sources: string[];
+    evidence_commitment?: string;
   };
 }

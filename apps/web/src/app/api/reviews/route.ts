@@ -4,12 +4,26 @@ import { verifyReviewSignature } from "@/lib/auth";
 import { validateOnchainReview } from "@/lib/base";
 import { readReview, submitGenLayerReview } from "@/lib/genlayer";
 import { reviewRequestSchema } from "@/lib/review-schema";
+import { consumeRateLimit, requestClientKey } from "@/lib/rate-limit";
 import type { ReviewRequest } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  const rateLimit = consumeRateLimit(`review:${requestClientKey(request)}`, {
+    limit: 8,
+    windowMs: 60_000,
+  });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many review requests. Try again shortly." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+      },
+    );
+  }
   let body: unknown;
   try {
     body = await request.json();
@@ -28,7 +42,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid or expired wallet signature" }, { status: 401 });
   }
   try {
-    const { milestone } = await validateOnchainReview(review);
+    const { milestone, canonical } = await validateOnchainReview(review);
+    const canonicalReview: ReviewRequest = {
+      ...review,
+      criterion: canonical.criterion,
+      criterionHash: canonical.criterionHash as `0x${string}`,
+    };
     const digest = keccak256(
       stringToHex(
         JSON.stringify({
@@ -36,7 +55,7 @@ export async function POST(request: Request) {
           eventId: review.eventId,
           milestoneId: review.milestoneId,
           requester: review.requester.toLowerCase(),
-          criterionHash: review.criterionHash,
+          criterionHash: canonical.criterionHash,
           evidenceStatement: review.evidenceStatement,
           evidenceLinks: review.evidenceLinks,
           appealContext: review.appealContext,
@@ -50,7 +69,7 @@ export async function POST(request: Request) {
     }
     const transactionHash = await submitGenLayerReview(
       reviewId,
-      review,
+      canonicalReview,
       Number(milestone.minimumScore),
     );
     return NextResponse.json(

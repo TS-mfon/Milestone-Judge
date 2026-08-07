@@ -7,7 +7,7 @@ export const reviewTypes = {
     { name: "eventId", type: "uint256" },
     { name: "milestoneId", type: "uint256" },
     { name: "attemptId", type: "uint256" },
-    { name: "criterionHash", type: "bytes32" },
+    { name: "criterionTextHash", type: "bytes32" },
     { name: "evidenceHash", type: "bytes32" },
     { name: "nonce", type: "string" },
     { name: "expiresAt", type: "uint256" },
@@ -15,6 +15,7 @@ export const reviewTypes = {
 } as const;
 
 export function reviewTypedData(request: Omit<ReviewRequest, "signature">) {
+  const criterionTextHash = keccak256(stringToHex(request.criterion));
   const evidenceHash = keccak256(
     stringToHex(
       JSON.stringify({
@@ -28,7 +29,8 @@ export function reviewTypedData(request: Omit<ReviewRequest, "signature">) {
   return {
     domain: {
       name: "Milestone Verifier",
-      version: "2",
+      version: "3",
+      chainId: publicConfig.chain.id,
       verifyingContract: publicConfig.escrowAddress,
     },
     types: reviewTypes,
@@ -37,7 +39,7 @@ export function reviewTypedData(request: Omit<ReviewRequest, "signature">) {
       eventId: BigInt(request.eventId),
       milestoneId: BigInt(request.milestoneId),
       attemptId: BigInt(request.attemptId),
-      criterionHash: request.criterionHash,
+      criterionTextHash,
       evidenceHash,
       nonce: request.nonce,
       expiresAt: BigInt(request.expiresAt),
@@ -47,6 +49,10 @@ export function reviewTypedData(request: Omit<ReviewRequest, "signature">) {
 
 export async function verifyReviewSignature(request: ReviewRequest) {
   if (request.expiresAt <= Math.floor(Date.now() / 1000)) return false;
+  const recomputedCriterionHash = keccak256(stringToHex(request.criterion));
+  if (recomputedCriterionHash.toLowerCase() !== request.criterionHash.toLowerCase()) {
+    return false;
+  }
   const { signature, ...unsigned } = request;
   return verifyTypedData({
     address: request.requester,

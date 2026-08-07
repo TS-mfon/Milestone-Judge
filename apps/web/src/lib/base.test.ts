@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const readContract = vi.fn();
 
-vi.mock("viem", () => ({
-  createPublicClient: () => ({ readContract }),
-  http: vi.fn(),
-}));
+vi.mock("viem", async () => {
+  const actual = await vi.importActual<typeof import("viem")>("viem");
+  return { ...actual, createPublicClient: () => ({ readContract }), http: vi.fn() };
+});
 
 vi.mock("./config", () => ({
   isContractConfigured: true,
@@ -21,7 +21,8 @@ import type { ReviewRequest } from "./types";
 
 const assignee = "0x2222222222222222222222222222222222222222" as const;
 const creator = "0x3333333333333333333333333333333333333333" as const;
-const criterionHash = `0x${"44".repeat(32)}` as const;
+const criterionHash =
+  "0xe1d6ae227993839db7bcf6fa8b3a400f6bd823c6433ac108534d52a39a93bbeb" as const;
 
 const request: ReviewRequest = {
   kind: "initial",
@@ -61,6 +62,7 @@ function mockBaseState({
       approvalProposed,
       appealOpen,
       criteriaHash: criterionHash,
+      criteria: request.criterion,
     };
   });
 }
@@ -95,5 +97,24 @@ describe("validateOnchainReview", () => {
         milestone: expect.objectContaining({ criteriaHash: request.criterionHash }),
       }),
     );
+  });
+
+  it("rejects substituted criterion text even when the funded hash is reused", async () => {
+    mockBaseState({});
+
+    await expect(
+      validateOnchainReview({ ...request, criterion: `${request.criterion} substituted` }),
+    ).rejects.toThrow("Criterion text does not match the funded milestone");
+  });
+
+  it("rejects a criterion hash that was not recomputed from the request text", async () => {
+    mockBaseState({});
+
+    await expect(
+      validateOnchainReview({
+        ...request,
+        criterionHash: `0x${"11".repeat(32)}`,
+      }),
+    ).rejects.toThrow("Criterion hash does not match the submitted criterion text");
   });
 });

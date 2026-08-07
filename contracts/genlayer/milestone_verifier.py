@@ -12,6 +12,24 @@ MAX_SOURCE_CHARS = 12000
 MAX_TOTAL_SOURCE_CHARS = 48000
 
 
+def _keccak_hex(value: str) -> str:
+    return "0x" + Keccak256(value.encode("utf-8")).hexdigest()
+
+
+def _evidence_commitment(sources: list[dict]) -> str:
+    snapshots = [
+        {
+            "url": str(source["url"]),
+            "fetch_url": str(source["fetch_url"]),
+            "status": int(source["status"]),
+            "retrieved": bool(source["retrieved"]),
+            "content": str(source["content"]),
+        }
+        for source in sources
+    ]
+    return _keccak_hex(json.dumps(snapshots, sort_keys=True, separators=(",", ":")))
+
+
 def _normalize_bool(value) -> bool:
     if isinstance(value, bool):
         return value
@@ -186,6 +204,11 @@ class MilestoneVerifier(gl.Contract):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Invalid review kind")
         if len(review_id) == 0 or len(criterion) == 0 or len(evidence_statement) == 0:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Missing required review input")
+        recomputed_criterion_hash = _keccak_hex(criterion)
+        if recomputed_criterion_hash.lower() != criterion_hash.lower():
+            raise gl.vm.UserError(
+                f"{ERROR_EXPECTED} Criterion hash does not match criterion text"
+            )
         if minimum_score < 1 or minimum_score > 100:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Minimum score must be between 1 and 100")
         if self.review_results.get(review_id, "") != "":
@@ -207,6 +230,7 @@ class MilestoneVerifier(gl.Contract):
 
         def leader_fn():
             sources = _fetch_evidence(normalized_links)
+            evidence_commitment = _evidence_commitment(sources)
             retrieved_sources = [
                 str(source["url"]) for source in sources if source["retrieved"]
             ]
@@ -265,12 +289,14 @@ inconclusive when decisive evidence is missing or unavailable. Score completion
 quality from 0 to 100. Cite only exact URLs from the contract-fetched evidence.
 Do not approve based only on the assignee statement or the appearance of a URL.
 """
-            return _normalize_result(
+            normalized = _normalize_result(
                 gl.nondet.exec_prompt(prompt, response_format="json"),
                 minimum_score,
                 normalized_links,
                 retrieved_sources,
             )
+            normalized["evidence_commitment"] = evidence_commitment
+            return normalized
 
         result = gl.eq_principle.prompt_comparative(
             leader_fn,
@@ -297,7 +323,8 @@ Do not approve based only on the assignee statement or the appearance of a URL.
             "attempt_id": attempt_id,
             "assignee": assignee,
             "criterion": criterion,
-            "criterion_hash": criterion_hash,
+            "criterion_hash": recomputed_criterion_hash,
+            "evidence_commitment": result["evidence_commitment"],
             "minimum_score": minimum_score,
             "evidence_statement": evidence_statement,
             "evidence_links": normalized_links,

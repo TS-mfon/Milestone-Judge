@@ -24,6 +24,8 @@ function sleep(milliseconds: number) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+const activeSettlements = new Set<string>();
+
 async function waitForRelay(taskId: string) {
   for (let attempt = 0; attempt < 45; attempt += 1) {
     const status = await getRelayStatus(taskId);
@@ -42,6 +44,12 @@ export async function settleReview(
   eventId: number,
   milestoneId: number,
 ) {
+  const lockKey = `${reviewId}:${action}:${eventId}:${milestoneId}`;
+  if (activeSettlements.has(lockKey)) {
+    throw new Error("Settlement is already in progress for this review");
+  }
+  activeSettlements.add(lockKey);
+  try {
   const review = await requireFinalizedReview(reviewId);
   if (
     review.base_chain_id !== String(publicConfig.chain.id) ||
@@ -75,6 +83,15 @@ export async function settleReview(
   }
   if (event.status !== 2) throw new Error("Base event is not active");
   if (milestone.paid) throw new Error("Milestone is already paid");
+
+  const canonicalCriterionHash = keccak256(stringToHex(milestone.criteria));
+  if (
+    review.criterion !== milestone.criteria ||
+    canonicalCriterionHash.toLowerCase() !== milestone.criteriaHash.toLowerCase() ||
+    review.criterion_hash.toLowerCase() !== canonicalCriterionHash.toLowerCase()
+  ) {
+    throw new Error("GenLayer criterion does not match the funded Base milestone");
+  }
 
   const resultHash = keccak256(stringToHex(JSON.stringify(review.result)));
   if (action === "automatic-payout") {
@@ -204,4 +221,7 @@ export async function settleReview(
       milestone.resultHash,
     )),
   };
+  } finally {
+    activeSettlements.delete(lockKey);
+  }
 }

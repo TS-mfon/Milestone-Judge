@@ -7,7 +7,7 @@
 - Base Sepolia USDC:
   `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
 - GenLayer StudioNet verifier:
-  `0x0C5215C9f4997dfF0Bd614256732899A69952e66`
+  `0x411337519d463DEf32Fc8cb304E87DC4c503C178`
 - Base owner and settlement executor:
   `0xEd9EDd8586b20524CafA4F568413C504C9B03172`
 - GenLayer review signer:
@@ -17,13 +17,16 @@
 - Base deployment transaction:
   `0xfa217ff42335008c40dd991b6e69b3a919032e788c70105cd2179eb04a91bc03`
 - GenLayer deployment transaction:
-  `0x935bc006af4fb015032cc9226aa274fd06589a46aef288d31c5077ccc0ac09f4`
+  `0x8ee4607ba2183491d8612a7c280085bc7f89df77c0ef4b5bba372c0c1264328f`
 - Base index start block:
   `44765124`
 
-This deployment adds contract-fetched evidence, threshold-aware comparative
-consensus, immutable approval proposals, creator-selected settlement policy,
-and browser-independent stateless settlement automation.
+The verifier was redeployed on August 7, 2026. This version independently
+recomputes the funded criterion hash, stores an evidence snapshot commitment,
+and rejects substituted criterion text before consensus. The Base escrow was
+not redeployed because its bytecode and funded-state model were unchanged;
+canonical criterion enforcement is performed before GenLayer submission and
+again before every 1Shot proposal or payout.
 
 ## 1. Separate service signers
 

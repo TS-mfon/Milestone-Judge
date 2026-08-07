@@ -1,4 +1,4 @@
-import { createPublicClient, http } from "viem";
+import { createPublicClient, http, keccak256, stringToHex } from "viem";
 import { publicConfig, isContractConfigured } from "./config";
 import { escrowAbi } from "./contracts";
 import type { ReviewRequest } from "./types";
@@ -44,7 +44,14 @@ export async function validateOnchainReview(request: ReviewRequest) {
   if (request.kind === "appeal" && !milestone.appealOpen) {
     throw new Error("The on-chain appeal is not open");
   }
-  if (milestone.criteriaHash.toLowerCase() !== request.criterionHash.toLowerCase()) {
+  const recomputedCriterionHash = keccak256(stringToHex(request.criterion));
+  if (request.criterion !== milestone.criteria) {
+    throw new Error("Criterion text does not match the funded milestone");
+  }
+  if (recomputedCriterionHash.toLowerCase() !== request.criterionHash.toLowerCase()) {
+    throw new Error("Criterion hash does not match the submitted criterion text");
+  }
+  if (milestone.criteriaHash.toLowerCase() !== recomputedCriterionHash.toLowerCase()) {
     throw new Error("Criterion does not match the funded milestone");
   }
   if (
@@ -53,5 +60,12 @@ export async function validateOnchainReview(request: ReviewRequest) {
   ) {
     throw new Error("Not enough time remains to verify and settle this milestone");
   }
-  return { event, milestone };
+  return {
+    event,
+    milestone,
+    canonical: {
+      criterion: milestone.criteria,
+      criterionHash: milestone.criteriaHash,
+    },
+  };
 }

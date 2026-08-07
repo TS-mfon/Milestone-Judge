@@ -1,6 +1,7 @@
 import { createAccount, createClient } from "genlayer-js";
 import { studionet, testnetBradbury } from "genlayer-js/chains";
 import { ExecutionResult, TransactionStatus } from "genlayer-js/types";
+import { keccak256, stringToHex } from "viem";
 import { getServerConfig, publicConfig } from "./config";
 import type { ReviewRequest, StoredReview } from "./types";
 
@@ -28,6 +29,10 @@ export async function submitGenLayerReview(
   request: ReviewRequest,
   minimumScore: number,
 ) {
+  const recomputedCriterionHash = keccak256(stringToHex(request.criterion));
+  if (recomputedCriterionHash.toLowerCase() !== request.criterionHash.toLowerCase()) {
+    throw new Error("Criterion hash does not match criterion text at GenLayer boundary");
+  }
   return writeClient().writeContract({
     address: publicConfig.genlayerContractAddress,
     functionName: "request_review",
@@ -41,7 +46,7 @@ export async function submitGenLayerReview(
       String(request.attemptId),
       request.assignee,
       request.criterion,
-      request.criterionHash,
+      recomputedCriterionHash,
       minimumScore,
       request.evidenceStatement,
       JSON.stringify(request.evidenceLinks),
