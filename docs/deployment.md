@@ -28,6 +28,14 @@ not redeployed because its bytecode and funded-state model were unchanged;
 canonical criterion enforcement is performed before GenLayer submission and
 again before every 1Shot proposal or payout.
 
+The September 7, 2026 Milestone 1-3 source changes add protocol v1
+documentation, cumulative Base milestone-limit enforcement, indexer-oriented
+read models, and protocol-versioned GenLayer records. Because the current Base
+deployment contains historical/funded event state, its replacement bytecode
+must not be switched into production until an explicit migration or retirement
+plan exists. The existing escrow address remains the production financial
+authority while these additive contract changes are staged and verified.
+
 ## 1. Separate service signers
 
 Generate a GenLayer-only signer outside the application runtime:

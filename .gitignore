@@ -15,6 +15,7 @@ broadcast/
 .platform-*.local.json
 pk.md
 plan.md
+Milestone.md
 contracts/base/lib/
 contracts/base/out/
 contracts/base/cache/

@@ -6,6 +6,10 @@ from gltest import get_contract_factory
 from gltest.assertions import tx_execution_succeeded
 
 
+CRITERION = "Confirm that the public document is reachable and contains text"
+CRITERION_HASH = "0x7dd4372ad72777350a8d42c6eea00e9b415b4fcaba7470bff7b51e3729155cb6"
+
+
 @pytest.mark.slow
 def test_real_web_and_consensus_review():
     platform = os.environ.get("GENLAYER_INTEGRATION_PLATFORM_ADDRESS")
@@ -24,8 +28,8 @@ def test_real_web_and_consensus_review():
             "0",
             "1",
             platform,
-            "Confirm that the public document is reachable and contains text",
-            "0xintegration",
+            CRITERION,
+            CRITERION_HASH,
             80,
             "The public document contains the submitted milestone evidence.",
             json.dumps(["https://write.as/"]),

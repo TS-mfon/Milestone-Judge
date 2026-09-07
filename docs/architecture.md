@@ -6,6 +6,10 @@ Base Sepolia is authoritative for USDC. `MilestoneEscrow` stores event terms,
 locks the aggregate milestone amount, enforces its two-step settlement state,
 prevents duplicate releases, and returns only unpaid funds after expiry.
 
+The escrow also exposes stable read models for automation and indexing:
+`getEventMilestoneCount`, `getSettlementState`, and `getConfig`. These are
+projections of existing storage, not a second source of truth.
+
 GenLayer is authoritative for subjective evidence judgments. The intelligent
 contract accepts requests only from the GenLayer platform signer, retrieves and
 bounds every evidence source, uses prompt-comparative consensus over the same

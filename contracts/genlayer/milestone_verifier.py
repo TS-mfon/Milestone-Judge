@@ -10,6 +10,7 @@ ERROR_LLM = "[LLM_ERROR]"
 MAX_EVIDENCE_LINKS = 12
 MAX_SOURCE_CHARS = 12000
 MAX_TOTAL_SOURCE_CHARS = 48000
+PROTOCOL_VERSION = "1"
 
 
 def _keccak_hex(value: str) -> str:
@@ -314,6 +315,7 @@ Do not approve based only on the assignee statement or the appearance of a URL.
             ),
         )
         stored = {
+            "protocol_version": PROTOCOL_VERSION,
             "review_id": review_id,
             "review_kind": review_kind,
             "base_chain_id": base_chain_id,

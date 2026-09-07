@@ -55,6 +55,9 @@ def test_platform_can_store_approved_review(direct_vm, direct_deploy, direct_ali
     assert stored["result"]["retrieved_sources"] == ["https://example.com/release"]
     assert stored["result"]["suggestions"] == ["Publish a post-launch reliability report"]
     assert stored["evidence_links"] == ["https://example.com/release"]
+    assert stored["protocol_version"] == "1"
+    assert stored["evidence_commitment"].startswith("0x")
+    assert stored["result"]["evidence_commitment"] == stored["evidence_commitment"]
     assert (
         contract.get_latest_review_id("84532", "0xEscrow", "1", "0")
         == "review-1"

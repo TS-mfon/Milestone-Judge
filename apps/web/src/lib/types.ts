@@ -75,6 +75,7 @@ export interface ReviewRequest {
 }
 
 export interface StoredReview {
+  protocol_version?: string;
   review_id: string;
   review_kind: "initial" | "appeal";
   base_chain_id: string;

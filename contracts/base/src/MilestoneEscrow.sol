@@ -62,6 +62,11 @@ contract MilestoneEscrow {
     error Paused();
     error ReentrantCall();
 
+    uint256 public constant MAX_MILESTONES_PER_EVENT = 50;
+    uint256 public constant MAX_TITLE_LENGTH = 120;
+    uint256 public constant MAX_TERMS_LENGTH = 2_000;
+    uint256 public constant MAX_CRITERIA_LENGTH = 2_000;
+
     IERC20 public immutable usdc;
     address public owner;
     address public pendingOwner;
@@ -179,7 +184,8 @@ contract MilestoneEscrow {
         returns (uint256 eventId)
     {
         if (assignee == address(0)) revert InvalidAddress();
-        if (bytes(title).length == 0 || bytes(title).length > 120) revert InvalidInput();
+        if (bytes(title).length == 0 || bytes(title).length > MAX_TITLE_LENGTH) revert InvalidInput();
+        if (bytes(termsCid).length > MAX_TERMS_LENGTH) revert InvalidInput();
         if (deadline <= block.timestamp) revert InvalidDeadline();
         if (challengePeriod > 7 days || block.timestamp + challengePeriod > deadline) {
             revert InvalidDeadline();
@@ -215,14 +221,15 @@ contract MilestoneEscrow {
         if (record.status != EventStatus.Draft) revert InvalidState();
         if (
             criteria.length == 0 || criteria.length != amounts.length
-                || criteria.length != minimumScores.length || criteria.length > 50
+                || criteria.length != minimumScores.length
+                || record.milestoneCount + criteria.length > MAX_MILESTONES_PER_EVENT
         ) {
             revert InvalidInput();
         }
 
         for (uint256 i; i < criteria.length; ++i) {
             if (
-                bytes(criteria[i]).length == 0 || bytes(criteria[i]).length > 2_000
+                bytes(criteria[i]).length == 0 || bytes(criteria[i]).length > MAX_CRITERIA_LENGTH
                     || amounts[i] == 0 || minimumScores[i] == 0 || minimumScores[i] > 100
             ) {
                 revert InvalidInput();
@@ -434,6 +441,65 @@ contract MilestoneEscrow {
         returns (Appeal memory)
     {
         return appeals[eventId][milestoneId];
+    }
+
+    function getEventMilestoneCount(uint256 eventId) external view returns (uint256) {
+        return events[eventId].milestoneCount;
+    }
+
+    function getSettlementState(uint256 eventId, uint256 milestoneId)
+        external
+        view
+        returns (
+            EventStatus eventStatus,
+            bool approvalProposed,
+            bool appealOpen,
+            bool paid,
+            uint64 challengeDeadline,
+            uint8 minimumScore,
+            uint8 approvedScore,
+            bytes32 reviewId,
+            bytes32 resultHash
+        )
+    {
+        EventRecord memory record = events[eventId];
+        Milestone memory milestone = milestones[eventId][milestoneId];
+        if (milestoneId >= record.milestoneCount) revert InvalidInput();
+        return (
+            record.status,
+            milestone.approvalProposed,
+            milestone.appealOpen,
+            milestone.paid,
+            milestone.challengeDeadline,
+            milestone.minimumScore,
+            milestone.approvedScore,
+            milestone.reviewId,
+            milestone.resultHash
+        );
+    }
+
+    function getConfig()
+        external
+        view
+        returns (
+            address usdcAddress,
+            address escrowOwner,
+            address executor,
+            bool isPaused,
+            uint256 bondBps,
+            uint256 minimumBond,
+            uint256 maximumBond
+        )
+    {
+        return (
+            address(usdc),
+            owner,
+            platformExecutor,
+            paused,
+            appealBondBps,
+            minimumAppealBond,
+            maximumAppealBond
+        );
     }
 
     function transferOwnership(address nextOwner) external onlyOwner {

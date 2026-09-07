@@ -171,6 +171,48 @@ export const escrowAbi = [
       },
     ],
   },
+  {
+    type: "function",
+    name: "getEventMilestoneCount",
+    stateMutability: "view",
+    inputs: [{ name: "eventId", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "getSettlementState",
+    stateMutability: "view",
+    inputs: [
+      { name: "eventId", type: "uint256" },
+      { name: "milestoneId", type: "uint256" },
+    ],
+    outputs: [
+      { name: "eventStatus", type: "uint8" },
+      { name: "approvalProposed", type: "bool" },
+      { name: "appealOpen", type: "bool" },
+      { name: "paid", type: "bool" },
+      { name: "challengeDeadline", type: "uint64" },
+      { name: "minimumScore", type: "uint8" },
+      { name: "approvedScore", type: "uint8" },
+      { name: "reviewId", type: "bytes32" },
+      { name: "resultHash", type: "bytes32" },
+    ],
+  },
+  {
+    type: "function",
+    name: "getConfig",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [
+      { name: "usdcAddress", type: "address" },
+      { name: "escrowOwner", type: "address" },
+      { name: "executor", type: "address" },
+      { name: "isPaused", type: "bool" },
+      { name: "bondBps", type: "uint256" },
+      { name: "minimumBond", type: "uint256" },
+      { name: "maximumBond", type: "uint256" },
+    ],
+  },
 ] as const;
 
 export const erc20Abi = [

@@ -291,4 +291,75 @@ contract MilestoneEscrowTest is Test {
         assertEq(record.totalAmount, 50e6);
         assertEq(usdc.balanceOf(address(escrow)), 50e6);
     }
+
+    function testCannotExceedFiftyMilestonesAcrossMultipleBatches() public {
+        vm.startPrank(creator);
+        uint256 eventId = escrow.createEvent(
+            assignee,
+            "Limit event",
+            "https://write.as/terms",
+            uint64(block.timestamp + 7 days),
+            0
+        );
+        string[] memory criteria = new string[](50);
+        uint256[] memory amounts = new uint256[](50);
+        uint8[] memory scores = new uint8[](50);
+        for (uint256 i; i < 50; ++i) {
+            criteria[i] = "Complete a funded milestone";
+            amounts[i] = 1e6;
+            scores[i] = 80;
+        }
+        escrow.addMilestones(eventId, criteria, amounts, scores);
+
+        string[] memory extraCriteria = new string[](1);
+        extraCriteria[0] = "This must be rejected";
+        uint256[] memory extraAmounts = new uint256[](1);
+        extraAmounts[0] = 1e6;
+        uint8[] memory extraScores = new uint8[](1);
+        extraScores[0] = 80;
+        vm.expectRevert(MilestoneEscrow.InvalidInput.selector);
+        escrow.addMilestones(eventId, extraCriteria, extraAmounts, extraScores);
+        vm.stopPrank();
+    }
+
+    function testReadModelsExposeCurrentSettlementAndConfig() public {
+        uint256 eventId = createAndFundWithPeriod(0);
+        (
+            MilestoneEscrow.EventStatus eventStatus,
+            bool approvalProposed,
+            bool appealOpen,
+            bool paid,
+            uint64 challengeDeadline,
+            uint8 minimumScore,
+            uint8 approvedScore,
+            bytes32 reviewId,
+            bytes32 resultHash
+        ) = escrow.getSettlementState(eventId, 0);
+        assertEq(uint8(eventStatus), uint8(MilestoneEscrow.EventStatus.Active));
+        assertFalse(approvalProposed);
+        assertFalse(appealOpen);
+        assertFalse(paid);
+        assertEq(challengeDeadline, 0);
+        assertEq(minimumScore, 80);
+        assertEq(approvedScore, 0);
+        assertEq(reviewId, bytes32(0));
+        assertEq(resultHash, bytes32(0));
+        assertEq(escrow.getEventMilestoneCount(eventId), 2);
+        (
+            address configuredUsdc,
+            address configuredOwner,
+            address configuredExecutor,
+            bool isPaused,
+            uint256 bondBps,
+            uint256 minimumBond,
+            uint256 maximumBond
+        ) = escrow.getConfig();
+        assertEq(configuredUsdc, address(usdc));
+        assertEq(configuredOwner, address(this));
+        assertEq(configuredExecutor, executor);
+        assertFalse(isPaused);
+        assertEq(bondBps, 100);
+        assertEq(minimumBond, 1e6);
+        assertEq(maximumBond, 100e6);
+    }
 }

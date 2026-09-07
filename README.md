@@ -29,6 +29,10 @@ Production application:
 Deployment transactions and the latest end-to-end smoke record are maintained
 in [`docs/deployment.md`](docs/deployment.md).
 
+The versioned protocol and lifecycle rules are documented in
+[`docs/protocol-v1.md`](docs/protocol-v1.md). The local build-and-ship roadmap
+is kept in the ignored `Milestone.md` file.
+
 ## What The Application Does
 
 - Creates an event for one assigned wallet.
@@ -36,7 +40,8 @@ in [`docs/deployment.md`](docs/deployment.md).
   on Base Sepolia.
 - Lets the creator choose instant settlement or a 1-hour, 24-hour, or 3-day
   challenge period for the complete event.
-- Adds up to 50 immutable natural-language milestones before funding.
+- Adds up to 50 immutable natural-language milestones before funding and enforces
+  the limit cumulatively across multiple calls.
 - Assigns an exact USDC amount and minimum GenLayer score from 1 to 100 to each
   milestone.
 - Locks the aggregate USDC budget when the creator activates the event.
